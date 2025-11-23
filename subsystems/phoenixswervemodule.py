@@ -110,7 +110,10 @@ class PhoenixSwerveModule:
             current_angle = Rotation2d(self.getCancoderPosition())
 
         # Optimize using WPILib
+        print("correctedDesiredState:", correctedDesiredState)
+        print("current_angle:", current_angle)
         optimized = SwerveModuleState.optimize(correctedDesiredState, current_angle)
+        print("optimized:", optimized)
 
         # Fallback if optimize fails
         if optimized is None:
