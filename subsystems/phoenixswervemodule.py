@@ -90,7 +90,11 @@ class PhoenixSwerveModule:
         return self.turningMotor.get_position().value * 2 * math.pi
 
     def getCancoderPosition(self):
-        return 2 * math.pi * self.feedbackDevice.get_position().value
+        position = self.feedbackDevice.get_position().value
+        if position is None:
+            return None
+        else:
+            return position
 
     def setDesiredState(self, desiredState: SwerveModuleState) -> None:
         """Sets the desired state of the module."""
@@ -107,7 +111,7 @@ class PhoenixSwerveModule:
         if cancoder_pos is None:
             current_angle = Rotation2d(0)
         else:
-            current_angle = Rotation2d(self.getCancoderPosition())
+            current_angle = Rotation2d(self.turningMotor.get_position().value * 2 * math.pi)
 
         # Optimize using WPILib
         print("correctedDesiredState:", correctedDesiredState)
