@@ -31,9 +31,12 @@ from commands.holonomicdrive import HolonomicDrive
 from wpimath import applyDeadband
 import commands2
 
+
 class DriveSubsystem(Subsystem):
     def __init__(self, maxSpeedScaleFactor=None) -> None:
         super().__init__()
+
+        self.isAutoDriving = False  # <----- PathPlanner flag
 
         if maxSpeedScaleFactor is not None:
             assert callable(maxSpeedScaleFactor)
@@ -78,13 +81,13 @@ class DriveSubsystem(Subsystem):
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
         )
 
-        #RoboRIO Gyro Sensor
+        # Gyro
         self.gyro = navx.AHRS.create_spi()
         self._lastGyroAngleTime = 0
         self._lastGyroAngle = 0
         self._lastGyroState = "ok"
 
-        #Slew rate filter variables for controlling lateral acceleration
+        # Slew filters
         self.currentTranslationDir = 0.0
         self.currentTranslationMag = 0.0
 
@@ -92,7 +95,7 @@ class DriveSubsystem(Subsystem):
         self.rotLimiter = SlewRateLimiter(DrivingConstants.kRotationalSlewRate)
         self.prevTime = wpilib.Timer.getFPGATimestamp()
 
-        #Odometry class for tracking robot pose
+        # Odometry
         self.odometry = SwerveDrive4Odometry(
             DrivingConstants.kDriveKinematics,
             Rotation2d(),
@@ -112,23 +115,33 @@ class DriveSubsystem(Subsystem):
         self.simPhysics = None
 
         AutoBuilder.configure(
-            self.getPose,  # Robot pose supplier
-            self.resetOdometry,  # Method to reset odometry (will be called if your auto has a starting pose)
-            self.getRobotRelativeSpeeds,  # ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
-            lambda speeds, feedforwards: self.drive(speeds.vx, speeds.vy, speeds.omega, True, True),
-            # Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds. Also outputs individual module feedforwards
+            self.getPose,                # Pose supplier
+            self.resetOdometry,         # PP will call this at start
+            self.getRobotRelativeSpeeds,   # Robot-relative speeds
+            lambda speeds, ff: self._ppDrive(speeds),   # Drive for auto
             PPHolonomicDriveController(
-                # PPHolonomicController is the built in path following controller for holonomic drive trains
-                PIDConstants(5.0, 0.0, 0.0),  # Translation PID constants
-                PIDConstants(5.0, 0.0, 0.0)  # Rotation PID constants
+                PIDConstants(5.0, 0.0, 0.0),
+                PIDConstants(5.0, 0.0, 0.0)
             ),
-            AutoConstants.config,  # The robot configuration
-            self.shouldFlipPath,  # Supplier to control path flipping based on alliance color
-            self  # Reference to this subsystem to set requirements
+            AutoConstants.config,
+            self.shouldFlipPath,
+            self
         )
 
+    def _ppDrive(self, speeds: ChassisSpeeds):
+        """Internal: PathPlanner robot-relative driving."""
+        self.isAutoDriving = True
+        self.drive(
+            speeds.vx,
+            speeds.vy,
+            speeds.omega,
+            fieldRelative=False,   # MUST be robot-relative
+            rateLimit=False,       # MUST be no slew limiting
+            square=False           # MUST be linear input
+        )
+        self.isAutoDriving = False
+
     def getRobotRelativeSpeeds(self) -> ChassisSpeeds:
-        """Returns the current robot-relative ChassisSpeeds"""
         return DrivingConstants.kDriveKinematics.toChassisSpeeds(
             (
                 self.frontLeft.getState(),
@@ -139,16 +152,12 @@ class DriveSubsystem(Subsystem):
         )
 
     def shouldFlipPath(self):
-        # Boolean supplier that controls when the path will be mirrored for the red alliance
-        # This will flip the path being followed to the red side of the field.
-        # THE ORIGIN WILL REMAIN ON THE BLUE SIDE
         return DriverStation.getAlliance() == DriverStation.Alliance.kRed
 
     def periodic(self) -> None:
         if self.simPhysics is not None:
             self.simPhysics.periodic()
 
-        # Update the odometry in the periodic block
         pose = self.odometry.update(
             self.getGyroHeading(),
             (
@@ -167,18 +176,9 @@ class DriveSubsystem(Subsystem):
         return self.getPose().rotation()
 
     def getPose(self) -> Pose2d:
-        """Returns the currently-estimated pose of the robot.
-
-        :returns: The pose.
-        """
         return self.odometry.getPose()
 
     def resetOdometry(self, pose: Pose2d) -> None:
-        """Resets the odometry to the specified pose.
-
-        :param pose: The pose to which to set the odometry.
-
-        """
         self.gyro.reset()
         self.gyro.setAngleAdjustment(0)
         self._lastGyroAngleTime = 0
@@ -194,7 +194,7 @@ class DriveSubsystem(Subsystem):
             ),
             pose,
         )
-        self.odometryHeadingOffset = self.odometry.getPose().rotation() - self.getGyroHeading()
+        self.odometryHeadingOffset = Rotation2d(0)
 
         self.field = Field2d()
         SmartDashboard.putData("Field", self.field)
@@ -203,7 +203,7 @@ class DriveSubsystem(Subsystem):
         pose = self.getPose()
         newPose = Pose2d(pose.translation() + dTrans, pose.rotation() + dRot)
         self.odometry.resetPosition(
-            pose.rotation() - self.odometryHeadingOffset,
+            pose.rotation(),
             (
                 self.frontLeft.getPosition(),
                 self.frontRight.getPosition(),
@@ -212,45 +212,20 @@ class DriveSubsystem(Subsystem):
             ),
             newPose,
         )
-        self.odometryHeadingOffset += dRot
 
     def stop(self):
         self.arcadeDrive(0, 0)
 
-    def arcadeDrive(
-            self,
-            xSpeed: float,
-            rot: float,
-            assumeManualInput: bool = False,
-    ) -> None:
+    def arcadeDrive(self, xSpeed: float, rot: float, assumeManualInput: bool = False):
         self.drive(xSpeed, 0, rot, False, False, square=assumeManualInput)
 
     def rotate(self, rotSpeed) -> None:
-        """
-        Rotate the robot in place, without moving laterally (for example, for aiming)
-        :param rotSpeed: rotation speed
-        """
         self.arcadeDrive(0, rotSpeed)
 
-    def drive(
-            self,
-            xSpeed: float,
-            ySpeed: float,
-            rot: float,
-            fieldRelative: bool,
-            rateLimit: bool,
-            square: bool = False
-    ) -> None:
-        """Method to drive the robot using joystick info.
-
-        :param xSpeed:        Speed of the robot in the x direction (forward).
-        :param ySpeed:        Speed of the robot in the y direction (sideways).
-        :param rot:           Angular rate of the robot.
-        :param fieldRelative: Whether the provided x and y speeds are relative to the
-                              field.
-        :param rateLimit:     Whether to enable rate limiting for smoother control.
-        :param square:        Whether to square the inputs (useful for manual control)
-        """
+    def drive(self, xSpeed, ySpeed, rot, fieldRelative, rateLimit, square=False):
+        if self.isAutoDriving:
+            rateLimit = False
+            square = False
 
         if square:
             rot = rot * abs(rot)
@@ -269,18 +244,15 @@ class DriveSubsystem(Subsystem):
         ySpeedCommanded = ySpeed
 
         if rateLimit:
-            # Convert XY to polar for rate limiting
             inputTranslationDir = math.atan2(ySpeed, xSpeed)
             inputTranslationMag = math.hypot(xSpeed, ySpeed)
 
-            # Calculate the direction slew rate based on an estimate of the lateral acceleration
             if self.currentTranslationMag != 0.0:
                 directionSlewRate = abs(
                     DrivingConstants.kDirectionSlewRate / self.currentTranslationMag
                 )
             else:
                 directionSlewRate = 500.0
-                # some high number that means the slew rate is effectively instantaneous
 
             currentTime = wpilib.Timer.getFPGATimestamp()
             elapsedTime = currentTime - self.prevTime
@@ -298,8 +270,6 @@ class DriveSubsystem(Subsystem):
                 )
 
             elif angleDif > 0.85 * math.pi:
-                # some small number to avoid floating-point errors with equality checking
-                # keep currentTranslationDir unchanged
                 if self.currentTranslationMag > 1e-4:
                     self.currentTranslationMag = self.magLimiter.calculate(0.0)
                 else:
@@ -331,7 +301,6 @@ class DriveSubsystem(Subsystem):
         else:
             self.currentRotation = rot
 
-        # Convert the commanded speeds into the correct units for the drivetrain
         xSpeedDelivered = xSpeedCommanded * DrivingConstants.kMaxMetersPerSecond
         ySpeedDelivered = ySpeedCommanded * DrivingConstants.kMaxMetersPerSecond
         rotDelivered = self.currentRotation * DrivingConstants.kMaxAngularSpeed
@@ -355,7 +324,6 @@ class DriveSubsystem(Subsystem):
         self.backRight.setDesiredState(rr)
 
     def setX(self) -> None:
-        """Sets the wheels into an X formation to prevent movement."""
         self.frontLeft.setDesiredState(SwerveModuleState(0, Rotation2d.fromDegrees(45)))
         self.frontRight.setDesiredState(
             SwerveModuleState(0, Rotation2d.fromDegrees(-45))
@@ -369,10 +337,6 @@ class DriveSubsystem(Subsystem):
                 SwerveModuleState, SwerveModuleState, SwerveModuleState, SwerveModuleState
             ],
     ) -> None:
-        """Sets the swerve ModuleStates.
-
-        :param desiredStates: The desired SwerveModule states.
-        """
         fl, fr, rl, rr = SwerveDrive4Kinematics.desaturateWheelSpeeds(
             desiredStates, DrivingConstants.kMaxMetersPerSecond
         )
@@ -382,17 +346,12 @@ class DriveSubsystem(Subsystem):
         self.backRight.setDesiredState(rr)
 
     def resetEncoders(self) -> None:
-        """Resets the drive encoders to currently read a position of 0."""
         self.frontLeft.resetEncoders()
         self.backLeft.resetEncoders()
         self.frontRight.resetEncoders()
         self.backRight.resetEncoders()
 
     def getGyroHeading(self) -> Rotation2d:
-        """Returns the heading of the robot, tries to be smart when gyro is disconnected
-
-        :returns: the robot's heading as Rotation2d
-        """
         now = wpilib.Timer.getFPGATimestamp()
         past = self._lastGyroAngleTime
         state = "ok"
@@ -409,20 +368,14 @@ class DriveSubsystem(Subsystem):
             SmartDashboard.putString("gyro", f"{state} after {int(now - past)}s")
             self._lastGyroState = state
 
-        return Rotation2d.fromDegrees(self._lastGyroAngle * DrivingConstants.kGyroReversed)
+        return Rotation2d.fromDegrees(
+            self._lastGyroAngle * DrivingConstants.kGyroReversed
+        )
 
     def getTurnRate(self) -> float:
-        """Returns the turn rate of the robot (in degrees per second)
-
-        :returns: The turn rate of the robot, in degrees per second
-        """
         return self.gyro.getRate() * DrivingConstants.kGyroReversed
 
     def getTurnRateDegreesPerSec(self) -> float:
-        """Returns the turn rate of the robot (in degrees per second)
-
-        :returns: The turn rate of the robot, in degrees per second
-        """
         return self.getTurnRate() * 180 / math.pi
 
 class BadSimPhysics(object):
