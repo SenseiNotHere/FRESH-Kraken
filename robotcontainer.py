@@ -30,7 +30,6 @@ from commands.holonomicdrive import HolonomicDrive
 from buttonbindings import ButtonBindings
 from constants import OIConstants
 
-from subsystems.phoenixswervemodule import PhoenixSwerveModule
 from constants import *
 
 

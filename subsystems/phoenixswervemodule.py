@@ -49,6 +49,7 @@ class PhoenixSwerveModule:
         #Initialize Turning Motors
         turningConfig = TalonFXConfiguration()
         turningConfig.motor_output.neutral_mode = NeutralModeValue.BRAKE
+        turningConfig.motor_output.inverted = InvertedValue.CLOCKWISE_POSITIVE if turnMotorInverted else InvertedValue.COUNTER_CLOCKWISE_POSITIVE
         turningConfig.slot0.k_p = 8.0
         turningConfig.slot0.k_i = 0.0
         turningConfig.slot0.k_d = 0.05
@@ -72,27 +73,29 @@ class PhoenixSwerveModule:
 
         #Reset encoders to starting position
         self.resetEncoders()
+        self.resetToAbsolute()
 
         current_angle_rad = self.getTurningPosition()
         self.desiredState = SwerveModuleState(0.0, Rotation2d(current_angle_rad))
 
     def getState(self) -> SwerveModuleState:
-        """Returns the current state of the module."""
-        velocity = self.drivingMotor.get_velocity().value
-        angle = self.getTurningPosition() - self.chassisAngularOffset
+        motor_rps = self.drivingMotor.get_velocity().value  # motor rotations/sec
+        wheel_rps = motor_rps / ModuleConstants.kDrivingMotorReduction
+        velocity_mps = wheel_rps * ModuleConstants.kWheelCircumferenceMeters
 
-        return SwerveModuleState(velocity, Rotation2d(angle))
+        angle = self.getTurningPosition()
+        return SwerveModuleState(velocity_mps, Rotation2d(angle))
 
     def getPosition(self) -> SwerveModulePosition:
-        """Returns the current relative position of the module."""
-        distance = self.drivingMotor.get_position().value
-        angle = self.getTurningPosition() - self.chassisAngularOffset
+        motor_rot = self.drivingMotor.get_position().value  # motor rotations
+        wheel_rot = motor_rot / ModuleConstants.kDrivingMotorReduction
+        distance_m = wheel_rot * ModuleConstants.kWheelCircumferenceMeters
 
-        return SwerveModulePosition(distance, Rotation2d(angle))
+        angle = self.getTurningPosition()
+        return SwerveModulePosition(distance_m, Rotation2d(angle))
 
-    def getTurningPosition(self) -> float:
-        wheel_rot = self.turningMotor.get_position().value  # fused, already in wheel rotations
-        return wheel_rot * 2 * math.pi
+    def getTurningPosition(self):
+        return self.turningMotor.get_position().value * 2 * math.pi
 
     def getCancoderPosition(self):
         position = self.feedbackDevice.get_position().value
@@ -106,27 +109,25 @@ class PhoenixSwerveModule:
         if abs(desiredState.speed) < 0.01:
             desiredState = SwerveModuleState(0.0, self.desiredState.angle)
 
-        # Apply chassis offset
-        correctedDesiredState = SwerveModuleState(
-            desiredState.speed,
-            desiredState.angle + Rotation2d(self.chassisAngularOffset)
-        )
-
         # Current wheel angle
-        curr = self.getTurningPosition()
-        curr = (curr + math.pi) % (2 * math.pi) - math.pi
-        current_angle = Rotation2d(curr)
+        current_angle = Rotation2d(self.getTurningPosition())
 
-        print("correctedDesiredState:", correctedDesiredState)
+        print("desiredState:", desiredState)
         print("current_angle:", current_angle)
 
-        # Optimize in-place
-        optimized = SwerveModuleState(correctedDesiredState.speed, correctedDesiredState.angle)
-        optimized.optimize(current_angle)
+        # Manual Optimize
+        delta = desiredState.angle - current_angle
+        if abs(delta.degrees()) > 90.0:
+            optimized = SwerveModuleState(
+                -desiredState.speed,
+                desiredState.angle + Rotation2d.fromDegrees(180)
+            )
+        else:
+            optimized = desiredState
 
         print("optimized:", optimized)
 
-        # Wheel rotations target (fused expects wheel rotations)
+        # Wheel rotations target
         angle_in_rotations = optimized.angle.radians() / (2 * math.pi)
 
         # Drive motor
@@ -154,10 +155,12 @@ class PhoenixSwerveModule:
             self.desiredState = SwerveModuleState(speed=0, angle=self.desiredState.angle)
 
     def resetEncoders(self) -> None:
-        """Zeroes the Absolute and Relative Encoders."""
+        """Zeroes Relative Encoders."""
         self.drivingMotor.set_position(0)
 
-    def absoluteZero(self):
-        self.turningMotor.set_control(
-            self.position_request.with_position(0)
-        )
+    def resetToAbsolute(self):
+        absolute = self.getCancoderPosition()
+        if absolute is None:
+            return
+
+        self.turningMotor.set_position(absolute)
