@@ -25,4 +25,4 @@ build/
 dist/
 
 # CTRE Sim
-.ctre_sim/
+ctre_sim/
