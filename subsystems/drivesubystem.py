@@ -47,6 +47,7 @@ class DriveSubsystem(Subsystem):
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             canCoderCANId=DrivingConstants.kFrontLeftTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
+            canCoderOffset=0.126220703125,
             chassisAngularOffset=DrivingConstants.kFrontLeftChassisAngularOffset * enabledChassisAngularOffset,
             modulePlace="FL"
         )
@@ -56,6 +57,7 @@ class DriveSubsystem(Subsystem):
             turningCANId=DrivingConstants.kFrontRightTurning,
             canCoderCANId=DrivingConstants.kFrontRightTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
+            canCoderOffset=-0.125732421875,
             chassisAngularOffset=DrivingConstants.kFrontRightChassisAngularOffset * enabledChassisAngularOffset,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             modulePlace="FR"
@@ -66,6 +68,7 @@ class DriveSubsystem(Subsystem):
             turningCANId=DrivingConstants.kBackLeftTurning,
             canCoderCANId=DrivingConstants.kBackLeftTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
+            canCoderOffset=-0.124267578125,
             chassisAngularOffset=DrivingConstants.kBackLeftChassisAngularOffset * enabledChassisAngularOffset,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             modulePlace="BL"
@@ -76,6 +79,7 @@ class DriveSubsystem(Subsystem):
             turningCANId=DrivingConstants.kBackRightTurning,
             canCoderCANId=DrivingConstants.kBackRightTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
+            canCoderOffset=-0.375,
             chassisAngularOffset=DrivingConstants.kBackRightChassisAngularOffset * enabledChassisAngularOffset,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             modulePlace="BR"

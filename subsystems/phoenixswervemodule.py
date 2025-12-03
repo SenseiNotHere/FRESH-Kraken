@@ -1,6 +1,6 @@
 import math
 from phoenix6.hardware import TalonFX,CANcoder
-from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration
+from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, CurrentLimitsConfigs
 from phoenix6.signals import NeutralModeValue, InvertedValue, FeedbackSensorSourceValue
 from phoenix6.controls import VelocityVoltage, PositionVoltage
 from wpilib import SmartDashboard
@@ -16,6 +16,7 @@ class PhoenixSwerveModule:
             turnMotorInverted: bool,
             canCoderCANId: int,
             canCoderInverted: bool,
+            canCoderOffset: float,
             chassisAngularOffset: float,
             modulePlace
     ) -> None:
@@ -33,11 +34,12 @@ class PhoenixSwerveModule:
         self.drivingMotor = TalonFX(drivingCANId)
         self.turningMotor = TalonFX(turningCANId)
         self.canCoder = CANcoder(canCoderCANId)
+        self.canCoderOffset = canCoderOffset
         self.modulePlace = modulePlace
 
         # Configure CANCoder
         canCoderConfig = CANcoderConfiguration()
-        canCoderConfig.magnet_sensor.magnet_offset = 0.4
+        canCoderConfig.magnet_sensor.magnet_offset = self.canCoderOffset
         canCoderConfig.sensor_direction = InvertedValue.CLOCKWISE_POSITIVE if canCoderInverted else InvertedValue.COUNTER_CLOCKWISE_POSITIVE
         self.canCoder.configurator.apply(canCoderConfig)
 
@@ -50,6 +52,14 @@ class PhoenixSwerveModule:
         drivingConfig.slot0.k_d = 0.0
         self.drivingMotor.configurator.apply(drivingConfig)
 
+        # Driving Current Limits
+#        drivingCurrentLimit = CurrentLimitsConfigs()
+#        drivingCurrentLimit.stator_current_limit = 60
+#        drivingCurrentLimit.supply_current_limit = 40
+#        drivingCurrentLimit.stator_current_limit_enable = True
+#        drivingCurrentLimit.supply_current_limit_enable = True
+#       self.drivingMotor.configurator.apply(drivingCurrentLimit)
+
         #Initialize Turning Motors
         turningConfig = TalonFXConfiguration()
         turningConfig.motor_output.neutral_mode = NeutralModeValue.BRAKE
@@ -59,6 +69,14 @@ class PhoenixSwerveModule:
         turningConfig.slot0.k_d = 0.05
         turningConfig.motor_output.inverted = InvertedValue.CLOCKWISE_POSITIVE if turnMotorInverted else InvertedValue.COUNTER_CLOCKWISE_POSITIVE
         self.turningMotor.configurator.apply(turningConfig)
+
+        # Turning Current Limits
+#        turningCurrentLimit = CurrentLimitsConfigs()
+#        turningCurrentLimit.stator_current_limit = 35
+#        turningCurrentLimit.supply_current_limit = 20
+#        turningCurrentLimit.stator_current_limit_enable = True
+#        turningCurrentLimit.supply_current_limit_enable = True
+#        self.turningMotor.configurator.apply(turningCurrentLimit)
 
         #Set up velocity and position requests for the motors
         self.velocity_request = VelocityVoltage(0).with_slot(0)
@@ -161,8 +179,8 @@ class PhoenixSwerveModule:
 
         self.desiredState = desiredState
 
-        abs_pos = self.canCoder.get_absolute_position().value
-        print(f"CanCoder ID: {self.canCoder.device_id} Position: {abs_pos}")
+#        abs_pos = self.canCoder.get_absolute_position().value
+#        print(f"CanCoder ID: {self.canCoder.device_id} Position: {abs_pos}")
 
     def stop(self):
         """Stops the module."""
