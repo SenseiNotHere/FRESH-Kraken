@@ -64,7 +64,7 @@ class PhoenixSwerveModule:
             if canCoderInverted
             else InvertedValue.COUNTER_CLOCKWISE_POSITIVE
         )
-        self.canCoder.configurator.apply(canCoderConfig, 0.1)
+        self.canCoder.configurator.apply(canCoderConfig)
 
         # Drive motor config
         drivingConfig = TalonFXConfiguration()
@@ -74,17 +74,17 @@ class PhoenixSwerveModule:
             if driveMotorInverted
             else InvertedValue.COUNTER_CLOCKWISE_POSITIVE
         )
-        drivingConfig.slot0.k_p = 0.3
-        drivingConfig.slot0.k_i = 0.0
-        drivingConfig.slot0.k_d = 0.0
+        drivingConfig.slot0.k_p = ModuleConstants.kDrivingP
+        drivingConfig.slot0.k_i = ModuleConstants.kDrivingI
+        drivingConfig.slot0.k_d = ModuleConstants.kDrivingD
         self.drivingMotor.configurator.apply(drivingConfig)
 
         # Turn motor config
         turningConfig = TalonFXConfiguration()
         turningConfig.motor_output.neutral_mode = NeutralModeValue.BRAKE
-        turningConfig.slot0.k_p = 4.0
-        turningConfig.slot0.k_i = 0.0
-        turningConfig.slot0.k_d = 0.05
+        turningConfig.slot0.k_p = ModuleConstants.kTurningP
+        turningConfig.slot0.k_i = ModuleConstants.kTurningI
+        turningConfig.slot0.k_d = ModuleConstants.kTurningD
         turningConfig.motor_output.inverted = (
             InvertedValue.CLOCKWISE_POSITIVE
             if turnMotorInverted
@@ -103,14 +103,14 @@ class PhoenixSwerveModule:
 
     def getTurningPosition(self) -> float:
         """
-        Steering angle in radians, module frame (0 = wheel "forward" for this module).
+        :return: Steering angle in radians, module frame (0 = wheel "forward" for this module).
         """
         motor_rot = self.turningMotor.get_position().value
         return motor_rot * self.steerMotorRotToRad  # rad
 
     def getState(self) -> SwerveModuleState:
         """
-        Returns the current state of the module (used by kinematics/odometry).
+        :return: Returns the current state of the module (used by kinematics/odometry).
         """
         motor_rps = self.drivingMotor.get_velocity().value
         wheel_mps = motor_rps * self.driveMotorRpsToMps
@@ -122,7 +122,7 @@ class PhoenixSwerveModule:
 
     def getPosition(self) -> SwerveModulePosition:
         """
-        Returns the current position of the module (used by odometry).
+        :return: the current position of the module (used by odometry).
         """
         motor_rot = self.drivingMotor.get_position().value
         wheel_meters = motor_rot * self.driveMotorRotToMeters
@@ -132,14 +132,35 @@ class PhoenixSwerveModule:
         return SwerveModulePosition(wheel_meters, Rotation2d(angle))
 
 
-    def syncTurningEncoder(self) -> None:
+    def syncTurningEncoder(self, force: bool = False) -> None:
         """
         Sync the steering motor integrated encoder to the absolute CANCoder angle.
-        Assumes CANCoder magnet_offset is set so that abs=0 means wheel forward.
+        Only syncs if drift exceeds threshold to avoid violent corrections.
+        
+        :param force: If True, sync regardless of drift amount
         """
-        absolute_rot = self.canCoder.get_absolute_position().value  # 0 -> 1 rotations
-        motor_rot = absolute_rot * ModuleConstants.kTurningMotorReduction
-        self.turningMotor.set_position(motor_rot)
+        # Get current motor position
+        current_motor_rot = self.turningMotor.get_position().value
+        
+        # Get absolute position from CANCoder (0 to 1 rotations)
+        absolute_rot = self.canCoder.get_absolute_position().value
+        
+        # Find the equivalent motor position closest to current position
+        target_motor_rot = absolute_rot * ModuleConstants.kTurningMotorReduction
+        
+        # Calculate how many full rotations off we are
+        diff = current_motor_rot - target_motor_rot
+        full_rotations = round(diff / ModuleConstants.kTurningMotorReduction)
+        
+        # Adjust target to be closest to current position
+        adjusted_target = target_motor_rot + (full_rotations * ModuleConstants.kTurningMotorReduction)
+        
+        # Only sync if drift is significant (more than ~5 degrees) or forced
+        drift = abs(current_motor_rot - adjusted_target)
+        drift_threshold = ModuleConstants.kTurningMotorReduction * (5.0 / 360.0)  # 5 degrees
+        
+        if force or drift > drift_threshold:
+            self.turningMotor.set_position(adjusted_target)
 
     def resetEncoders(self) -> None:
         """
@@ -150,7 +171,7 @@ class PhoenixSwerveModule:
 
     def _optimizeState(self, desired: SwerveModuleState) -> SwerveModuleState:
         """
-        Re-implement WPILib's SwerveModuleState.optimize:
+        :return: Re-implement WPILib's SwerveModuleState.optimize:
         """
         current_angle = Rotation2d(self.getTurningPosition())
         target_angle = desired.angle
@@ -234,8 +255,16 @@ class PhoenixSwerveModule:
 
     def getTemperature(self):
         """
-        Returns the temperatures of the module's motors.
+        :return: Returns the temperatures of the module's motors.
         """
         drivingTemp = self.drivingMotor.get_device_temp().value
         turningTemp = self.turningMotor.get_device_temp().value
         return drivingTemp, turningTemp
+
+    def getSupplyCurrent(self):
+        """
+        :return: Returns the current draw of the module's motors.
+        """
+        drivingCurrent = self.drivingMotor.get_supply_current()
+        turningCurrent = self.turningMotor.get_supply_current()
+        return drivingCurrent, turningCurrent

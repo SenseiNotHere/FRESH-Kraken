@@ -67,9 +67,21 @@ class DrivingConstants:
     kGyroReversed = -1
 
 class ModuleConstants:
-    #One needs to be false and the other true! Which is false and which is true depends on which swerve type you have.
+    # For most modules, encoder and turning CANNOT be both False or Positive!
     kTurningEncoderInverted = False
     kTurningMotorInverted = False
+
+    # Driving motor inversions
+    kFrontLeftDriveMotorInverted = True
+    kFrontRightDriveMotorInverted = False
+    kBackLeftDriveMotorInverted = True
+    kBackRightDriveMotorInverted = False
+
+    # Magnet Offsets
+    kFrontLeftTurningEncoderOffset = 0.264404296875
+    kFrontRightTurningEncoderOffset = 0.218505859375
+    kBackLeftTurningEncoderOffset = -0.0810546875
+    kBackRightTurningEncoderOffset = 0.0966796875
 
     kDrivingMotorPinionTeeth = 14
 
@@ -88,17 +100,17 @@ class ModuleConstants:
     kTurningEncoderPositionPIDMinInput = 0  # radian
     kTurningEncoderPositionPIDMaxInput = kTurningEncoderPositionFactor  # radian
 
-    kDrivingP = 0.04
+    kDrivingP = 0.3
     kDrivingI = 0
     kDrivingD = 0
     kDrivingFF = 1 / kDriveWheelFreeSpeedRps
     kDrivingMinOutput = -1
     kDrivingMaxOutput = 1
 
-    kTurningP = 1  # can be dialed down if you see oscillations in the turning motor
+    kTurningP = 2.0  # can be dialed down if you see oscillations in the turning motor
     kTurningI = 0
     kTurningD = 0
-    kTurningFF = 0
+    kTurningFF = 0.05
     kTurningMinOutput = -1
     kTurningMaxOutput = 1
 

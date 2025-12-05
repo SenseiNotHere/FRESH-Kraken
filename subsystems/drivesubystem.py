@@ -24,6 +24,8 @@ from pathplannerlib.auto import AutoBuilder
 from pathplannerlib.controller import PPHolonomicDriveController
 from pathplannerlib.config import RobotConfig, PIDConstants
 
+from phoenix6.orchestra import Orchestra
+
 from constants import DrivingConstants, ModuleConstants, AutoConstants
 from commands.holonomicDrive import HolonomicDrive
 
@@ -45,10 +47,10 @@ class DriveSubsystem(Subsystem):
             drivingCANId=DrivingConstants.kFrontLeftDriving,
             turningCANId=DrivingConstants.kFrontLeftTurning,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
-            driveMotorInverted=True,
+            driveMotorInverted=ModuleConstants.kFrontLeftDriveMotorInverted,
             canCoderCANId=DrivingConstants.kFrontLeftTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
-            canCoderOffset=0.264404296875,
+            canCoderOffset=ModuleConstants.kFrontLeftTurningEncoderOffset,
             chassisAngularOffset=DrivingConstants.kFrontLeftChassisAngularOffset * enabledChassisAngularOffset,
             modulePlace="FL"
         )
@@ -57,10 +59,10 @@ class DriveSubsystem(Subsystem):
             drivingCANId=DrivingConstants.kFrontRightDriving,
             turningCANId=DrivingConstants.kFrontRightTurning,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
-            driveMotorInverted=False,
+            driveMotorInverted=ModuleConstants.kFrontRightDriveMotorInverted,
             canCoderCANId=DrivingConstants.kFrontRightTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
-            canCoderOffset=0.218505859375,
+            canCoderOffset=ModuleConstants.kFrontRightTurningEncoderOffset,
             chassisAngularOffset=DrivingConstants.kFrontRightChassisAngularOffset * enabledChassisAngularOffset,
             modulePlace="FR"
         )
@@ -69,10 +71,10 @@ class DriveSubsystem(Subsystem):
             drivingCANId=DrivingConstants.kBackLeftDriving,
             turningCANId=DrivingConstants.kBackLeftTurning,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
-            driveMotorInverted=True,
+            driveMotorInverted=ModuleConstants.kBackLeftDriveMotorInverted,
             canCoderCANId=DrivingConstants.kBackLeftTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
-            canCoderOffset=-0.0810546875,
+            canCoderOffset=ModuleConstants.kBackLeftTurningEncoderOffset,
             chassisAngularOffset=DrivingConstants.kBackLeftChassisAngularOffset * enabledChassisAngularOffset,
             modulePlace="BL"
         )
@@ -81,10 +83,10 @@ class DriveSubsystem(Subsystem):
             drivingCANId=DrivingConstants.kBackRightDriving,
             turningCANId=DrivingConstants.kBackRightTurning,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
-            driveMotorInverted=False,
+            driveMotorInverted=ModuleConstants.kBackRightDriveMotorInverted,
             canCoderCANId=DrivingConstants.kBackRightTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
-            canCoderOffset=0.0966796875,
+            canCoderOffset=ModuleConstants.kBackRightTurningEncoderOffset,
             chassisAngularOffset=DrivingConstants.kBackRightChassisAngularOffset * enabledChassisAngularOffset,
             modulePlace="BR"
         )
@@ -167,12 +169,12 @@ class DriveSubsystem(Subsystem):
             self.simPhysics.periodic()
 
         # Periodically sync wheel angles to absolute encoders to prevent drift
-        # This prevents the turning motors from losing their "forward" position over time
+        # Only syncs if drift exceeds ~5 degrees to avoid violent corrections
         current_time = wpilib.Timer.getFPGATimestamp()
         if not hasattr(self, '_lastSyncTime'):
             self._lastSyncTime = current_time
         
-        if current_time - self._lastSyncTime > 0.5:  # Sync every 0.5 seconds
+        if current_time - self._lastSyncTime > 1.0:  # Check every 1 second
             self.frontLeft.syncTurningEncoder()
             self.frontRight.syncTurningEncoder()
             self.backLeft.syncTurningEncoder()
@@ -189,10 +191,26 @@ class DriveSubsystem(Subsystem):
                 self.backRight.getPosition(),
             ),
         )
+
+        self.field.setRobotPose(pose)
+
+        # Data Puts
+        # Pose
         SmartDashboard.putNumber("X Coordinate", pose.x)
         SmartDashboard.putNumber("Y Coordinate", pose.y)
         SmartDashboard.putNumber("Heading (deg)", pose.rotation().degrees())
-        self.field.setRobotPose(pose)
+
+        # Temperatures
+        SmartDashboard.putNumberArray("Front Left Temp", self.frontLeft.getTemperature())
+        SmartDashboard.putNumberArray("Front Right Temp", self.frontRight.getTemperature())
+        SmartDashboard.putNumberArray("Back Left Temp", self.backLeft.getTemperature())
+        SmartDashboard.putNumberArray("Back Right Temp", self.backRight.getTemperature())
+
+        # Positions
+        SmartDashboard.putNumber("Front Left Position", self.frontLeft.getPosition().angle.degrees())
+        SmartDashboard.putNumber("Front Right Position", self.frontRight.getPosition().angle.degrees())
+        SmartDashboard.putNumber("Back Left Position", self.backLeft.getPosition().angle.degrees())
+        SmartDashboard.putNumber("Back Right Position", self.backRight.getPosition().angle.degrees())
 
     def getHeading(self) -> Rotation2d:
         return self.getPose().rotation()
