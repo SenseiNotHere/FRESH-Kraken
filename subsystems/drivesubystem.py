@@ -45,6 +45,7 @@ class DriveSubsystem(Subsystem):
             drivingCANId=DrivingConstants.kFrontLeftDriving,
             turningCANId=DrivingConstants.kFrontLeftTurning,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
+            driveMotorInverted=True,
             canCoderCANId=DrivingConstants.kFrontLeftTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
             canCoderOffset=0.264404296875,
@@ -55,33 +56,36 @@ class DriveSubsystem(Subsystem):
         self.frontRight = PhoenixSwerveModule(
             drivingCANId=DrivingConstants.kFrontRightDriving,
             turningCANId=DrivingConstants.kFrontRightTurning,
+            turnMotorInverted=ModuleConstants.kTurningMotorInverted,
+            driveMotorInverted=False,
             canCoderCANId=DrivingConstants.kFrontRightTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
             canCoderOffset=0.218505859375,
             chassisAngularOffset=DrivingConstants.kFrontRightChassisAngularOffset * enabledChassisAngularOffset,
-            turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             modulePlace="FR"
         )
 
         self.backLeft = PhoenixSwerveModule(
             drivingCANId=DrivingConstants.kBackLeftDriving,
             turningCANId=DrivingConstants.kBackLeftTurning,
+            turnMotorInverted=ModuleConstants.kTurningMotorInverted,
+            driveMotorInverted=True,
             canCoderCANId=DrivingConstants.kBackLeftTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
             canCoderOffset=-0.0810546875,
             chassisAngularOffset=DrivingConstants.kBackLeftChassisAngularOffset * enabledChassisAngularOffset,
-            turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             modulePlace="BL"
         )
 
         self.backRight = PhoenixSwerveModule(
             drivingCANId=DrivingConstants.kBackRightDriving,
             turningCANId=DrivingConstants.kBackRightTurning,
+            turnMotorInverted=ModuleConstants.kTurningMotorInverted,
+            driveMotorInverted=False,
             canCoderCANId=DrivingConstants.kBackRightTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
             canCoderOffset=0.0966796875,
             chassisAngularOffset=DrivingConstants.kBackRightChassisAngularOffset * enabledChassisAngularOffset,
-            turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             modulePlace="BR"
         )
 
@@ -161,6 +165,19 @@ class DriveSubsystem(Subsystem):
     def periodic(self) -> None:
         if self.simPhysics is not None:
             self.simPhysics.periodic()
+
+        # Periodically sync wheel angles to absolute encoders to prevent drift
+        # This prevents the turning motors from losing their "forward" position over time
+        current_time = wpilib.Timer.getFPGATimestamp()
+        if not hasattr(self, '_lastSyncTime'):
+            self._lastSyncTime = current_time
+        
+        if current_time - self._lastSyncTime > 0.5:  # Sync every 0.5 seconds
+            self.frontLeft.syncTurningEncoder()
+            self.frontRight.syncTurningEncoder()
+            self.backLeft.syncTurningEncoder()
+            self.backRight.syncTurningEncoder()
+            self._lastSyncTime = current_time
 
         # Update the odometry in the periodic block
         pose = self.odometry.update(

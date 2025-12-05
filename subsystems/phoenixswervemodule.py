@@ -1,6 +1,6 @@
 import math
 from phoenix6.hardware import TalonFX, CANcoder
-from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration
+from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, CurrentLimitsConfigs
 from phoenix6.signals import NeutralModeValue, InvertedValue
 from phoenix6.controls import VelocityVoltage, PositionVoltage
 from wpilib import SmartDashboard
@@ -13,20 +13,33 @@ from constants import ModuleConstants
 class PhoenixSwerveModule:
     def __init__(
         self,
-        drivingCANId: int,
-        turningCANId: int,
-        turnMotorInverted: bool,
-        canCoderCANId: int,
-        canCoderInverted: bool,
-        canCoderOffset: float,
-        chassisAngularOffset: float,
-        modulePlace: str,
+        drivingCANId: int, # Driving controller CAN ID
+        turningCANId: int, # Turning controller CAN ID
+        turnMotorInverted: bool, # Turning motor inverted?
+        driveMotorInverted: bool, # Driving motor inverted?
+        canCoderCANId: int, # CANCoder Device ID
+        canCoderInverted: bool, # CANCoder inverted?
+        canCoderOffset: float, # CANCoder Magnet offset
+        chassisAngularOffset: float, # Chassis angular offset
+        modulePlace: str, # Module place on the chassis
     ) -> None:
+        """
+        Swerve Module constructor for TalonFXs and CANCoders.
+        :param drivingCANId: Driving controller CAN ID
+        :param turningCANId: Turning controller CAN ID
+        :param turnMotorInverted: Turning motor inverted?
+        :param driveMotorInverted: Driving motor inverted?
+        :param canCoderCANId: CANCoder Device ID
+        :param canCoderInverted: CANCoder inverted?
+        :param canCoderOffset: CANCoder Magnet offset
+        :param chassisAngularOffset: Chassis angular offset
+        :param modulePlace: Module place on the chassis (FL, FR, BL, BR)
+        """
         self.chassisAngularOffset = chassisAngularOffset
         self.desiredState = SwerveModuleState(0.0, Rotation2d())
         self.modulePlace = modulePlace
 
-        # motorRot -> wheelMeters
+        # driving motorRot -> wheelMeters
         self.driveMotorRotToMeters = (
             ModuleConstants.kWheelCircumferenceMeters / ModuleConstants.kDrivingMotorReduction
         )
@@ -56,6 +69,11 @@ class PhoenixSwerveModule:
         # Drive motor config
         drivingConfig = TalonFXConfiguration()
         drivingConfig.motor_output.neutral_mode = NeutralModeValue.BRAKE
+        drivingConfig.motor_output.inverted = (
+            InvertedValue.CLOCKWISE_POSITIVE
+            if driveMotorInverted
+            else InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+        )
         drivingConfig.slot0.k_p = 0.3
         drivingConfig.slot0.k_i = 0.0
         drivingConfig.slot0.k_d = 0.0
@@ -91,7 +109,9 @@ class PhoenixSwerveModule:
         return motor_rot * self.steerMotorRotToRad  # rad
 
     def getState(self) -> SwerveModuleState:
-        """Returns the current state of the module (used by kinematics/odometry)."""
+        """
+        Returns the current state of the module (used by kinematics/odometry).
+        """
         motor_rps = self.drivingMotor.get_velocity().value
         wheel_mps = motor_rps * self.driveMotorRpsToMps
 
@@ -101,7 +121,9 @@ class PhoenixSwerveModule:
         return SwerveModuleState(wheel_mps, Rotation2d(angle))
 
     def getPosition(self) -> SwerveModulePosition:
-        """Returns the current position of the module (used by odometry)."""
+        """
+        Returns the current position of the module (used by odometry).
+        """
         motor_rot = self.drivingMotor.get_position().value
         wheel_meters = motor_rot * self.driveMotorRotToMeters
 
@@ -115,7 +137,7 @@ class PhoenixSwerveModule:
         Sync the steering motor integrated encoder to the absolute CANCoder angle.
         Assumes CANCoder magnet_offset is set so that abs=0 means wheel forward.
         """
-        absolute_rot = self.canCoder.get_absolute_position().value  # 0 → 1 rotations
+        absolute_rot = self.canCoder.get_absolute_position().value  # 0 -> 1 rotations
         motor_rot = absolute_rot * ModuleConstants.kTurningMotorReduction
         self.turningMotor.set_position(motor_rot)
 
@@ -129,7 +151,6 @@ class PhoenixSwerveModule:
     def _optimizeState(self, desired: SwerveModuleState) -> SwerveModuleState:
         """
         Re-implement WPILib's SwerveModuleState.optimize:
-        choose the equivalent angle within ±90° of current to avoid spinning.
         """
         current_angle = Rotation2d(self.getTurningPosition())
         target_angle = desired.angle
@@ -198,7 +219,9 @@ class PhoenixSwerveModule:
         self.desiredState = desiredState
 
     def stop(self):
-        """Stops the module."""
+        """
+        Stops the module.
+        """
         self.drivingMotor.set_control(self.velocity_request.with_velocity(0))
         current_position = self.turningMotor.get_position().value
         self.turningMotor.set_control(
@@ -210,6 +233,9 @@ class PhoenixSwerveModule:
             )
 
     def getTemperature(self):
+        """
+        Returns the temperatures of the module's motors.
+        """
         drivingTemp = self.drivingMotor.get_device_temp().value
         turningTemp = self.turningMotor.get_device_temp().value
         return drivingTemp, turningTemp

@@ -77,7 +77,7 @@ class ModuleConstants:
     kDrivingMotorFreeSpeedRps = KrakenX60.kFreeSpeedRpm / 60
     kWheelDiameterMeters = 0.0965
     kWheelCircumferenceMeters = kWheelDiameterMeters * math.pi
-    # 45 teeth on the wheel's bevel gear, 22 teeth on the first-stage spur gear, 15 teeth on the bevel pinion
+
     kDrivingMotorReduction = 6.12
     kDriveWheelFreeSpeedRps = (kDrivingMotorFreeSpeedRps * kWheelCircumferenceMeters) / kDrivingMotorReduction
     kTurningMotorReduction = 12.6
