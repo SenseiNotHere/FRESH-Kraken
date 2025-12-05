@@ -47,7 +47,7 @@ class DriveSubsystem(Subsystem):
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             canCoderCANId=DrivingConstants.kFrontLeftTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
-            canCoderOffset=0.254638671875,
+            canCoderOffset=0.264404296875,
             chassisAngularOffset=DrivingConstants.kFrontLeftChassisAngularOffset * enabledChassisAngularOffset,
             modulePlace="FL"
         )
@@ -57,7 +57,7 @@ class DriveSubsystem(Subsystem):
             turningCANId=DrivingConstants.kFrontRightTurning,
             canCoderCANId=DrivingConstants.kFrontRightTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
-            canCoderOffset=0.21728515625,
+            canCoderOffset=0.218505859375,
             chassisAngularOffset=DrivingConstants.kFrontRightChassisAngularOffset * enabledChassisAngularOffset,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             modulePlace="FR"
@@ -68,7 +68,7 @@ class DriveSubsystem(Subsystem):
             turningCANId=DrivingConstants.kBackLeftTurning,
             canCoderCANId=DrivingConstants.kBackLeftTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
-            canCoderOffset=-0.081298828125,
+            canCoderOffset=-0.0810546875,
             chassisAngularOffset=DrivingConstants.kBackLeftChassisAngularOffset * enabledChassisAngularOffset,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             modulePlace="BL"
@@ -79,7 +79,7 @@ class DriveSubsystem(Subsystem):
             turningCANId=DrivingConstants.kBackRightTurning,
             canCoderCANId=DrivingConstants.kBackRightTurningEncoder,
             canCoderInverted=ModuleConstants.kTurningEncoderInverted,
-            canCoderOffset=0.09423828125,
+            canCoderOffset=0.0966796875,
             chassisAngularOffset=DrivingConstants.kBackRightChassisAngularOffset * enabledChassisAngularOffset,
             turnMotorInverted=ModuleConstants.kTurningMotorInverted,
             modulePlace="BR"
