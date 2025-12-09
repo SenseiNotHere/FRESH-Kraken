@@ -1,5 +1,5 @@
 #
-# Use this configuration file to control what RobotPy packages are installed
+# Use this configuration files to control what RobotPy packages are installed
 # on your RoboRIO
 #
 [tool.robotpy]

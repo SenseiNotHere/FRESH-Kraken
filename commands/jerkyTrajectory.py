@@ -2,7 +2,7 @@
 #
 # Copyright (c) FIRST and other WPILib contributors.
 # Open Source Software; you can modify and/or share it under the terms of
-# the WPILib BSD license file in the root directory of this project.
+# the WPILib BSD license files in the root directory of this project.
 #
 
 from __future__ import annotations
@@ -12,9 +12,9 @@ import typing
 import commands2
 
 from subsystems.drivesubsystem import DriveSubsystem
-from commands.aimtodirection import AimToDirection
-from commands.swervetopoint import SwerveToPoint
-from commands.gotopoint import GoToPoint
+from commands.aimToDirection import AimToDirection
+from commands.swerveToPoint import SwerveToPoint
+from commands.goToPoint import GoToPoint
 
 from wpimath.geometry import Pose2d, Rotation2d, Translation2d
 

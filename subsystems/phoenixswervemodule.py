@@ -3,6 +3,7 @@ from phoenix6.hardware import TalonFX, CANcoder
 from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, CurrentLimitsConfigs
 from phoenix6.signals import NeutralModeValue, InvertedValue
 from phoenix6.controls import VelocityVoltage, PositionVoltage
+from phoenix6.orchestra import Orchestra
 from wpilib import SmartDashboard
 from wpimath.geometry import Rotation2d
 from wpimath.kinematics import SwerveModuleState, SwerveModulePosition
@@ -100,6 +101,9 @@ class PhoenixSwerveModule:
         self.resetEncoders()
 
         #print(f"Device: {self.modulePlace} with position {self.canCoder.get_absolute_position().value}")
+
+        # Orchestra stuff
+        self.orchestra = Orchestra([self.drivingMotor, self.turningMotor])
 
     def getTurningPosition(self) -> float:
         """
@@ -268,3 +272,14 @@ class PhoenixSwerveModule:
         drivingCurrent = self.drivingMotor.get_supply_current()
         turningCurrent = self.turningMotor.get_supply_current()
         return drivingCurrent, turningCurrent
+
+    # Orchestra
+
+    def loadMusic(self, path: str):
+        self.orchestra.load_music(path)
+
+    def playMusic(self):
+        self.orchestra.play()
+
+    def stopMusic(self):
+        self.orchestra.stop()

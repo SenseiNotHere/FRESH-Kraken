@@ -147,6 +147,18 @@ class DriveSubsystem(Subsystem):
             self  # Reference to this subsystem to set requirements
         )
 
+        # Initialize Orchestra for playing music through all motors
+        self.orchestra = Orchestra([
+            self.frontLeft.drivingMotor,
+            self.frontLeft.turningMotor,
+            self.frontRight.drivingMotor,
+            self.frontRight.turningMotor,
+            self.backLeft.drivingMotor,
+            self.backLeft.turningMotor,
+            self.backRight.drivingMotor,
+            self.backRight.turningMotor,
+        ])
+
     def getRobotRelativeSpeeds(self) -> ChassisSpeeds:
         """Returns the current robot-relative ChassisSpeeds"""
         return DrivingConstants.kDriveKinematics.toChassisSpeeds(
@@ -473,6 +485,22 @@ class DriveSubsystem(Subsystem):
         :returns: The turn rate of the robot, in degrees per second
         """
         return self.getTurnRate() * 180 / math.pi
+
+    def playSound(self, path: str = "/home/lvuser/py/deploy/files/Bloodline.chrp"):
+        """
+        Play music through the swerve drive motors using Phoenix Orchestra.
+        All 8 motors (4 drive + 4 turn) will play together for maximum volume.
+        :param path: Path to the .chrp music file on the RoboRIO
+        """
+        print(f"Loading and playing music: {path}")
+        self.orchestra.load_music(path)
+        self.orchestra.play()
+
+    def stopSound(self):
+        """
+        Stop playing music through the motors.
+        """
+        self.orchestra.stop()
 
 class BadSimPhysics(object):
     """

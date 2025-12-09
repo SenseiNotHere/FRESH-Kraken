@@ -1,7 +1,7 @@
 #
 # Copyright (c) FIRST and other WPILib contributors.
 # Open Source Software; you can modify and/or share it under the terms of
-# the WPILib BSD license file in the root directory of this project.
+# the WPILib BSD license files in the root directory of this project.
 #
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import math
 from subsystems.drivesubsystem import DriveSubsystem
 from wpimath.geometry import Rotation2d, Translation2d
 
-from commands.aimtodirection import AimToDirectionConstants
+from commands.aimToDirection import AimToDirectionConstants
 from constants import AutoConstants
 
 class GoToPointConstants:

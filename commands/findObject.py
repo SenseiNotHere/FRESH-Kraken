@@ -1,5 +1,5 @@
 import commands2
-from commands.aimtodirection import AimToDirection
+from commands.aimToDirection import AimToDirection
 
 
 class FindObject(commands2.Command):

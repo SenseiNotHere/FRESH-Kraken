@@ -1,7 +1,7 @@
 #
 # Copyright (c) FIRST and other WPILib contributors.
 # Open Source Software; you can modify and/or share it under the terms of
-# the WPILib BSD license file in the root directory of this project.
+# the WPILib BSD license files in the root directory of this project.
 #
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import math
 import commands2
 
 from commands.aimToDirection import AimToDirectionConstants
-from commands.gotopoint import GoToPointConstants
+from commands.goToPoint import GoToPointConstants
 
 from wpimath.geometry import Rotation2d, Translation2d
 from wpilib import Timer, SmartDashboard, SendableChooser

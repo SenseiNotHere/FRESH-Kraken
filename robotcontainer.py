@@ -6,10 +6,6 @@ import phoenix6.controls
 import wpimath
 import wpilib
 import typing
-from phoenix6.hardware import TalonFX
-from phoenix6.configs import TalonFXConfiguration
-from phoenix6.signals import NeutralModeValue, InvertedValue
-from phoenix6.controls import VelocityVoltage, PositionVoltage, DutyCycleOut
 
 from commands2 import cmd, InstantCommand, RunCommand
 from commands2.button import CommandGenericHID
@@ -24,7 +20,7 @@ from wpimath.kinematics import (
     SwerveDrive4Odometry,
 )
 
-from subsystems.drivesubystem import DriveSubsystem, AutoBuilder, BadSimPhysics
+from subsystems.drivesubsystem import DriveSubsystem, AutoBuilder, BadSimPhysics
 from subsystems.limelightcamera import LimelightCamera
 from commands.holonomicDrive import HolonomicDrive
 from buttonbindings import ButtonBindings
@@ -32,6 +28,10 @@ from constants import OIConstants
 
 from subsystems.phoenixswervemodule import PhoenixSwerveModule
 from constants import *
+
+from commands.reset_XY import ResetXY, ResetSwerveFront
+from commands.followObject import FollowObject
+from commands.setCameraPipeline import SetCameraPipeline
 
 
 class RobotContainer:
@@ -45,15 +45,23 @@ class RobotContainer:
         self.robotDrive = DriveSubsystem()
         if commands2.TimedCommandRobot.isSimulation():
             self.robotDrive.simPhysics = BadSimPhysics(self.robotDrive, robot)
+        
+        # Auto chooser
         self.autoChooser = AutoBuilder.buildAutoChooser()
         SmartDashboard.putData("Auto Chooser", self.autoChooser)
+        
+        # Song chooser
+        self.songChooser = wpilib.SendableChooser()
+        self.songChooser.setDefaultOption("Bloodline - Ariana Grande", "/home/lvuser/py/deploy/files/Bloodline.chrp")
+        self.songChooser.addOption("Yes And? - Ariana Grande", "/home/lvuser/py/deploy/files/Yesand.chrp")
+        self.songChooser.addOption("Lavender Town", "/home/lvuser/py/deploy/files/LavenderTown.chrp")
+        self.songChooser.addOption("Espresso - Sabrina Carpenter", "/home/lvuser/py/deploy/files/Espresso.chrp")
+        SmartDashboard.putData("Song Selection", self.songChooser)
 
         #Setting up controllers
         self.driverController = CommandGenericHID(OIConstants.kDriverControllerPort)
-        self.limelight = LimelightCamera("camera")
+        self.limelight = LimelightCamera("limelight")
         self.limelight.setPiPMode(1)
-        self.buttonBindings = ButtonBindings(self)
-        self.buttonBindings.configureButtonBindings()
 
         self.robotDrive.setDefaultCommand(
             HolonomicDrive(
@@ -67,6 +75,10 @@ class RobotContainer:
                 square=True,
             )
         )
+
+        # Initialize button bindings
+        self.buttonBindings = ButtonBindings(self)
+        self.buttonBindings.configureButtonBindings()
 
     def disablePIDSubsystems(self):
         """
