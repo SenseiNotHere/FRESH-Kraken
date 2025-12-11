@@ -1,17 +1,20 @@
 import math
+
+from commands2 import Subsystem
+from phoenix6 import StatusSignal
 from phoenix6.hardware import TalonFX, CANcoder
 from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, CurrentLimitsConfigs
 from phoenix6.signals import NeutralModeValue, InvertedValue
 from phoenix6.controls import VelocityVoltage, PositionVoltage
 from phoenix6.orchestra import Orchestra
-from wpilib import SmartDashboard
+from wpilib import SmartDashboard, Timer
 from wpimath.geometry import Rotation2d
 from wpimath.kinematics import SwerveModuleState, SwerveModulePosition
 
 from constants import ModuleConstants
 
 
-class PhoenixSwerveModule:
+class PhoenixSwerveModule(Subsystem):
     def __init__(
         self,
         drivingCANId: int, # Driving controller CAN ID
@@ -36,6 +39,10 @@ class PhoenixSwerveModule:
         :param chassisAngularOffset: Chassis angular offset
         :param modulePlace: Module place on the chassis (FL, FR, BL, BR)
         """
+        super().__init__()
+        # ^^ if you inherit from Subsystem, you have to call Subsystem::init()
+        # , and then self->periodic() will be called 50 times per second
+
         self.chassisAngularOffset = chassisAngularOffset
         self.desiredState = SwerveModuleState(0.0, Rotation2d())
         self.modulePlace = modulePlace
@@ -55,6 +62,8 @@ class PhoenixSwerveModule:
         self.turningMotor = TalonFX(turningCANId)
         self.canCoder = CANcoder(canCoderCANId)
         self.canCoderOffset = canCoderOffset
+        self.canCoderError = "?"
+        self.nextSyncTime = 0.0
 
         # CANCoder config
         canCoderConfig = CANcoderConfiguration()
@@ -135,18 +144,33 @@ class PhoenixSwerveModule:
 
         return SwerveModulePosition(wheel_meters, Rotation2d(angle))
 
+    def periodic(self) -> None:
+        if ModuleConstants.kTurningKalmanGain == 0:
+            return
 
-    def syncTurningEncoder(self, force: bool = False) -> None:
+        t = Timer.getFPGATime()
+        if t < self.nextSyncTime:
+            return
+        self.nextSyncTime = t + ModuleConstants.kTurningSyncIntervalSeconds
+
+        self.syncTurningEncoder(continuously=True)
+
+    def syncTurningEncoder(self, force: bool = False, continuously: bool = False) -> None:
         """
         Sync the steering motor integrated encoder to the absolute CANCoder angle.
         Only syncs if drift exceeds threshold to avoid violent corrections.
         
         :param force: If True, sync regardless of drift amount
+        :param continuously: If true, use Kalman filter instead
         """
         # Get current motor position
         current_motor_rot = self.turningMotor.get_position().value
         
         # Get absolute position from CANCoder (0 to 1 rotations)
+        abs_position = self.getAbsolutePosition()
+        if abs_position is None:
+            return  # not much to do, the absolute encoder is not usable right now
+
         absolute_rot = self.canCoder.get_absolute_position().value
         
         # Find the equivalent motor position closest to current position
@@ -160,18 +184,42 @@ class PhoenixSwerveModule:
         adjusted_target = target_motor_rot + (full_rotations * ModuleConstants.kTurningMotorReduction)
         
         # Only sync if drift is significant (more than ~5 degrees) or forced
-        drift = abs(current_motor_rot - adjusted_target)
+        error = current_motor_rot - adjusted_target
         drift_threshold = ModuleConstants.kTurningMotorReduction * (5.0 / 360.0)  # 5 degrees
         
-        if force or drift > drift_threshold:
+        if (force or abs(error) > drift_threshold) and not continuously:
             self.turningMotor.set_position(adjusted_target)
+        elif ModuleConstants.kTurningKalmanGain != 0:
+            # "nudge" the reported position towards the absolute measurement
+            # (that's what 1d Kalman filter amounts to: it will converge without oscillation)
+            adjustment = -ModuleConstants.kTurningKalmanGain * error
+            self.turningMotor.set_position(current_motor_rot + adjustment)
+
+    def getAbsolutePosition(self) -> StatusSignal[float] | None:
+        error = "ticking"
+        observed_abs_position = None
+        if not self.canCoder.is_connected:
+            error = "disconnected"
+        elif self.canCoder.get_fault_hardware():
+            error = "unhealthy"
+        else:
+            observed_abs_position = self.canCoder.get_position()
+            if observed_abs_position is None:
+                error = "no position"
+
+        # only publish the new status when it changed
+        if error != self.canCoderError:
+            SmartDashboard.putString(f"cancoder_{self.canCoder.device_id}", error)
+            self.canCoderError = error
+
+        return observed_abs_position
 
     def resetEncoders(self) -> None:
         """
         Reset drive position to 0 and align steering encoder to absolute.
         """
         self.drivingMotor.set_position(0)
-        self.syncTurningEncoder()
+        self.syncTurningEncoder(continously=False)
 
     def _optimizeState(self, desired: SwerveModuleState) -> SwerveModuleState:
         """

@@ -94,6 +94,10 @@ class ModuleConstants:
     kDriveWheelFreeSpeedRps = (kDrivingMotorFreeSpeedRps * kWheelCircumferenceMeters) / kDrivingMotorReduction
     kTurningMotorReduction = 12.6
 
+    kTurningKalmanGain = 0.0
+    kTurningSyncIntervalSeconds = 0.2
+    # ^^ try 0.001, 0.01, 0.03 etc. (until you see oscillations, and then back off to safety by a factor of 0.25)
+
     kTurningEncoderPositionFactor = math.tau  # radian
     kTurningEncoderVelocityFactor = math.tau / 60.0  # radians per second
 
