@@ -219,7 +219,7 @@ class PhoenixSwerveModule(Subsystem):
         Reset drive position to 0 and align steering encoder to absolute.
         """
         self.drivingMotor.set_position(0)
-        self.syncTurningEncoder(continously=False)
+        self.syncTurningEncoder(continuously=False)
 
     def _optimizeState(self, desired: SwerveModuleState) -> SwerveModuleState:
         """
