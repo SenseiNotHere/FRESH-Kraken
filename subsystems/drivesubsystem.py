@@ -180,13 +180,26 @@ class DriveSubsystem(Subsystem):
         if self.simPhysics is not None:
             self.simPhysics.periodic()
 
-        # Periodically sync wheel angles to absolute encoders to prevent drift
-        # Only syncs if drift exceeds ~5 degrees to avoid violent corrections
+        # Check if robot is stopped by examining chassis speeds
+        speeds = self.getRobotRelativeSpeeds()
+        is_stopped = (abs(speeds.vx) < 0.01 and
+                     abs(speeds.vy) < 0.01 and
+                     abs(speeds.omega) < 0.01)
+
+        # Force initial sync when robot is first enabled and stopped
+        if self._needsInitialSync and is_stopped and DriverStation.isEnabled():
+            self.frontLeft.syncTurningEncoder(force=True)
+            self.frontRight.syncTurningEncoder(force=True)
+            self.backLeft.syncTurningEncoder(force=True)
+            self.backRight.syncTurningEncoder(force=True)
+            self._needsInitialSync = False
+            SmartDashboard.putString("Encoder Sync", "Initial sync complete")
+
         current_time = wpilib.Timer.getFPGATimestamp()
         if not hasattr(self, '_lastSyncTime'):
             self._lastSyncTime = current_time
-        
-        if current_time - self._lastSyncTime > 1.0:  # Check every 1 second
+
+        if is_stopped and current_time - self._lastSyncTime > 0.5:  # Check every 0.5 second when stopped
             self.frontLeft.syncTurningEncoder()
             self.frontRight.syncTurningEncoder()
             self.backLeft.syncTurningEncoder()
