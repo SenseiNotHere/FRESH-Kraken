@@ -37,6 +37,8 @@ class PhoenixSwerveModule:
         :param chassisAngularOffset: Chassis angular offset
         :param modulePlace: Module place on the chassis (FL, FR, BL, BR)
         """
+        super().__init__()
+
         self.chassisAngularOffset = chassisAngularOffset
         self.desiredState = SwerveModuleState(0.0, Rotation2d())
         self.modulePlace = modulePlace
@@ -196,14 +198,13 @@ class PhoenixSwerveModule:
             self.canCoderError = error
 
         return observed_abs_position
-
-
+    
     def resetEncoders(self) -> None:
         """
         Reset drive position to 0 and align steering encoder to absolute.
         """
         self.drivingMotor.set_position(0)
-        self.syncTurningEncoder(continuously=False)
+        self.syncTurningEncoder(force=True, continuously=False)
 
     def _optimizeState(self, desired: SwerveModuleState) -> SwerveModuleState:
         """
@@ -308,10 +309,19 @@ class PhoenixSwerveModule:
     # Orchestra
 
     def loadMusic(self, path: str):
+        """
+        Loads a music file into the orchestra.
+        """
         self.orchestra.load_music(path)
 
     def playMusic(self):
+        """
+        Plays the currently loaded music through the motors.
+        """
         self.orchestra.play()
 
     def stopMusic(self):
+        """
+        Stops playing music through the motors.
+        """
         self.orchestra.stop()
