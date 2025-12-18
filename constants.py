@@ -56,13 +56,13 @@ class DrivingConstants:
     ]
     kDriveKinematics = SwerveDrive4Kinematics(*kModulePositions)
 
-    kAssumeZeroOffsets = True
+    kAssumeZeroOffsets = False
 
     # set the above to == False, if you are manually zeroing (and you have to tinker with offsets below)
-    kFrontLeftChassisAngularOffset = 0  # FL
-    kFrontRightChassisAngularOffset = 0  # FR
-    kBackLeftChassisAngularOffset = 0  # BL
-    kBackRightChassisAngularOffset = 0  # BR
+    kFrontLeftChassisAngularOffset = -0.45340401785714296
+    kFrontRightChassisAngularOffset = -0.7254464285714287
+    kBackLeftChassisAngularOffset = (0.16043526785714288 + math.pi)
+    kBackRightChassisAngularOffset = -0.43945312500000006
 
     kGyroReversed = -1
 
@@ -93,11 +93,6 @@ class ModuleConstants:
     kDrivingMotorReduction = 6.12
     kDriveWheelFreeSpeedRps = (kDrivingMotorFreeSpeedRps * kWheelCircumferenceMeters) / kDrivingMotorReduction
     kTurningMotorReduction = 12.6
-
-    # radians are converted internally, these are MOTOR ROT units
-    kTurningSyncIntervalSeconds = 0.25  # how often we check drift
-    kTurningKalmanGain = 0.05  # 0 = disabled, 0.02–0.08 is sane
-    kTurningDriftDegrees = 5.0  # hard snap threshold
 
     kTurningEncoderPositionFactor = math.tau  # radian
     kTurningEncoderVelocityFactor = math.tau / 60.0  # radians per second

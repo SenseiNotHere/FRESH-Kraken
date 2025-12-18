@@ -109,53 +109,23 @@ class PhoenixSwerveModule(Subsystem):
         self.nextSyncTime = 0.0
 
         # Initial alignment
-        self.resetEncoders(force=True)
+        self.resetEncoders()
 
         # Orchestra stuff
         self.orchestra = Orchestra([self.drivingMotor, self.turningMotor])
 
     # Encoder Sync
 
-    def resetEncoders(self, force: bool = False) -> None:
+    def resetEncoders(self) -> None:
         self.drivingMotor.set_position(0)
-        self.syncTurningEncoder(force)
+        self.syncTurningEncoder()
 
-    def syncTurningEncoder(self, force: bool = False) -> None:
-        abs_signal = self.canCoder.get_absolute_position()
-        abs_signal.refresh()
-        absolute_rot = abs_signal.value  # 0–1 rotations
-
-        current_motor_rot = self.turningMotor.get_position().value
-        target_motor_rot = absolute_rot * ModuleConstants.kTurningMotorReduction
-
-        diff = current_motor_rot - target_motor_rot
-        full_rotations = round(diff / ModuleConstants.kTurningMotorReduction)
-        adjusted_target = (
-            target_motor_rot
-            + full_rotations * ModuleConstants.kTurningMotorReduction
-        )
-
-        error = current_motor_rot - adjusted_target
-
-        if force:
-            self.turningMotor.set_position(adjusted_target)
-            return
-
-        if ModuleConstants.kTurningKalmanGain > 0:
-            correction = -ModuleConstants.kTurningKalmanGain * error
-            self.turningMotor.set_position(current_motor_rot + correction)
+    def syncTurningEncoder(self) -> None:
+        abs_rot = self.canCoder.get_absolute_position().value
+        self.turningMotor.set_position(abs_rot * ModuleConstants.kTurningMotorReduction)
 
     def periodic(self) -> None:
-        # Kalman disabled? Do nothing.
-        if ModuleConstants.kTurningKalmanGain <= 0:
-            return
-
-        now = Timer.getFPGATimestamp()
-        if now < self.nextSyncTime:
-            return
-
-        self.nextSyncTime = now + ModuleConstants.kTurningSyncIntervalSeconds
-        self.syncTurningEncoder()
+        return  # no live syncing, ever
 
     # State / Odometry
 
@@ -211,9 +181,6 @@ class PhoenixSwerveModule(Subsystem):
         """
         Sets the desired state of the module.
         """
-        if abs(desiredState.speed) < 0.01:
-            desiredState = SwerveModuleState(0.0, self.desiredState.angle)
-
         desired_module = SwerveModuleState(
             desiredState.speed,
             desiredState.angle + Rotation2d(self.chassisAngularOffset),
