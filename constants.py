@@ -56,7 +56,7 @@ class DrivingConstants:
     ]
     kDriveKinematics = SwerveDrive4Kinematics(*kModulePositions)
 
-    kAssumeZeroOffsets = False
+    kAssumeZeroOffsets = True
 
     # set the above to == False, if you are manually zeroing (and you have to tinker with offsets below)
     kFrontLeftChassisAngularOffset = 0  # FL
@@ -120,10 +120,12 @@ class ModuleConstants:
     kTurningMaxOutput = 1
 
     kDrivingMotorIdleMode = talon_fx.signals.NeutralModeValue(NeutralModeValue.BRAKE)
-    kTurningMotorIdleMode = talon_fx.signals.NeutralModeValue(NeutralModeValue.COAST)
+    kTurningMotorIdleMode = talon_fx.signals.NeutralModeValue(NeutralModeValue.BRAKE)
 
     kDrivingMotorCurrentLimit = 50  # amp
+    kDrivingMotorStatorCurrentLimit = 70 # amp
     kTurningMotorCurrentLimit = 20  # amp
+    kTurningMotorStatorCurrentLimit = 35 # amp
 
     kDrivingMinSpeedMetersPerSecond = 0.01
 

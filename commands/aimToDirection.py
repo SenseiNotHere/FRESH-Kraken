@@ -75,7 +75,7 @@ class AimToDirection(commands2.Command):
     def end(self, interrupted: bool):
         self.drivetrain.arcadeDrive(0, 0)
 
-    def isFinished(self) -> bool:
+    def isFinished(self) -> bool | None:
         if self.fwdSpeed != 0:
             return False   # if someone wants us to drive forward while aiming, then we are never finished
 

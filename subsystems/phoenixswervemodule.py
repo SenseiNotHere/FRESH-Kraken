@@ -1,7 +1,7 @@
 import math
 from commands2 import Subsystem
 from phoenix6.hardware import TalonFX, CANcoder
-from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration
+from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, CurrentLimitsConfigs
 from phoenix6.signals import (
     NeutralModeValue,
     InvertedValue,
@@ -64,7 +64,7 @@ class PhoenixSwerveModule(Subsystem):
 
         # Drive motor config
         drivingConfig = TalonFXConfiguration()
-        drivingConfig.motor_output.neutral_mode = NeutralModeValue.BRAKE
+        drivingConfig.motor_output.neutral_mode = ModuleConstants.kDrivingMotorIdleMode
         drivingConfig.motor_output.inverted = (
             InvertedValue.CLOCKWISE_POSITIVE
             if driveMotorInverted
@@ -77,7 +77,7 @@ class PhoenixSwerveModule(Subsystem):
 
         # Turn motor config
         turningConfig = TalonFXConfiguration()
-        turningConfig.motor_output.neutral_mode = NeutralModeValue.BRAKE
+        turningConfig.motor_output.neutral_mode = ModuleConstants.kTurningMotorIdleMode
         turningConfig.motor_output.inverted = (
             InvertedValue.CLOCKWISE_POSITIVE
             if turnMotorInverted
@@ -88,6 +88,19 @@ class PhoenixSwerveModule(Subsystem):
         turningConfig.slot0.k_d = ModuleConstants.kTurningD
         self.turningMotor.configurator.apply(turningConfig)
 
+        # Current Limit Configs
+        # Driving motor current limit
+        drivingMotorLimits = CurrentLimitsConfigs()
+        drivingMotorLimits.supply_current_limit = ModuleConstants.kDrivingMotorCurrentLimit
+        drivingMotorLimits.stator_current_limit = ModuleConstants.kDrivingMotorStatorCurrentLimit
+        self.drivingMotor.configurator.apply(drivingMotorLimits)
+
+        # Turning motor current limit
+        turningMotorLimits = CurrentLimitsConfigs()
+        turningMotorLimits.supply_current_limit = ModuleConstants.kTurningMotorCurrentLimit
+        turningMotorLimits.stator_current_limit = ModuleConstants.kTurningMotorStatorCurrentLimit
+        self.turningMotor.configurator.apply(turningMotorLimits)
+
         # Control requests
         self.velocity_request = VelocityVoltage(0).with_slot(0)
         self.position_request = PositionVoltage(0).with_slot(0)
@@ -96,16 +109,16 @@ class PhoenixSwerveModule(Subsystem):
         self.nextSyncTime = 0.0
 
         # Initial alignment
-        self.resetEncoders()
+        self.resetEncoders(force=True)
 
         # Orchestra stuff
         self.orchestra = Orchestra([self.drivingMotor, self.turningMotor])
 
     # Encoder Sync
 
-    def resetEncoders(self) -> None:
+    def resetEncoders(self, force: bool = False) -> None:
         self.drivingMotor.set_position(0)
-        self.syncTurningEncoder(force=True)
+        self.syncTurningEncoder(force)
 
     def syncTurningEncoder(self, force: bool = False) -> None:
         abs_signal = self.canCoder.get_absolute_position()
@@ -123,12 +136,8 @@ class PhoenixSwerveModule(Subsystem):
         )
 
         error = current_motor_rot - adjusted_target
-        drift_threshold = (
-            ModuleConstants.kTurningMotorReduction
-            * (ModuleConstants.kTurningDriftDegrees / 360.0)
-        )
 
-        if force or abs(error) > drift_threshold:
+        if force:
             self.turningMotor.set_position(adjusted_target)
             return
 
@@ -137,10 +146,6 @@ class PhoenixSwerveModule(Subsystem):
             self.turningMotor.set_position(current_motor_rot + correction)
 
     def periodic(self) -> None:
-        # Never touch encoder state while enabled
-        if DriverStation.isEnabled():
-            return
-
         # Kalman disabled? Do nothing.
         if ModuleConstants.kTurningKalmanGain <= 0:
             return
@@ -173,7 +178,14 @@ class PhoenixSwerveModule(Subsystem):
     # Optimize
 
     def _optimizeState(self, desired: SwerveModuleState) -> SwerveModuleState:
-        current_angle = Rotation2d(self.getTurningPosition())
+        """
+        Optimize the desired SwerveModuleState to minimize steering rotation.
+
+        :param desired: The desired SwerveModuleState (speed and angle).
+        """
+        angle_rad = self.getTurningPosition()
+        angle_rad = math.atan2(math.sin(angle_rad), math.cos(angle_rad))
+        current_angle = Rotation2d(angle_rad)
         target_angle = desired.angle
 
         delta = target_angle.radians() - current_angle.radians()
@@ -196,6 +208,12 @@ class PhoenixSwerveModule(Subsystem):
     # Control
 
     def setDesiredState(self, desiredState: SwerveModuleState) -> None:
+        """
+        Sets the desired state of the module.
+        """
+        if abs(desiredState.speed) < 0.01:
+            desiredState = SwerveModuleState(0.0, self.desiredState.angle)
+
         desired_module = SwerveModuleState(
             desiredState.speed,
             desiredState.angle + Rotation2d(self.chassisAngularOffset),
@@ -210,18 +228,26 @@ class PhoenixSwerveModule(Subsystem):
         )
 
         # Turn
-        current_motor_rot = self.turningMotor.get_position().value
-        target_motor_rot = optimized.angle.radians() * self.radToSteerMotorRot
+        current_angle_rad = self.getTurningPosition()
+        current_angle_rad = math.atan2(
+            math.sin(current_angle_rad),
+            math.cos(current_angle_rad),
+        )
 
-        delta = target_motor_rot - current_motor_rot
-        while delta > math.pi * self.radToSteerMotorRot:
-            delta -= 2 * math.pi * self.radToSteerMotorRot
-        while delta < -math.pi * self.radToSteerMotorRot:
-            delta += 2 * math.pi * self.radToSteerMotorRot
+        target_angle_rad = optimized.angle.radians()
+
+        delta_rad = target_angle_rad - current_angle_rad
+        while delta_rad > math.pi:
+            delta_rad -= 2 * math.pi
+        while delta_rad < -math.pi:
+            delta_rad += 2 * math.pi
+
+        delta_motor_rot = delta_rad * self.radToSteerMotorRot
+        current_motor_rot = self.turningMotor.get_position().value
 
         self.turningMotor.set_control(
             self.position_request.with_position(
-                current_motor_rot + delta
+                current_motor_rot + delta_motor_rot
             )
         )
 
