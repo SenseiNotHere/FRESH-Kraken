@@ -213,6 +213,13 @@ class DriveSubsystem(Subsystem):
         SmartDashboard.putNumber("Back Left Position", self.backLeft.getPosition().angle.degrees())
         SmartDashboard.putNumber("Back Right Position", self.backRight.getPosition().angle.degrees())
 
+        self.frontLeft.publishDebug()
+        self.frontRight.publishDebug()
+        self.backLeft.publishDebug()
+        self.backRight.publishDebug()
+
+        SmartDashboard.putBoolean("Swerve/HasSynced", self._hasSynced)
+
     def disabledInit(self):
         if self._hasSynced:
             return

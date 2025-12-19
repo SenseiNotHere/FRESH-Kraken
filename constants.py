@@ -59,10 +59,10 @@ class DrivingConstants:
     kAssumeZeroOffsets = False
 
     # set the above to == False, if you are manually zeroing (and you have to tinker with offsets below)
-    kFrontLeftChassisAngularOffset = -0.45340401785714296
-    kFrontRightChassisAngularOffset = -0.7254464285714287
-    kBackLeftChassisAngularOffset = 0.16043526785714288
-    kBackRightChassisAngularOffset = -0.43945312500000006
+    kFrontLeftChassisAngularOffset = 0 #-0.45340401785714296
+    kFrontRightChassisAngularOffset = 0 #-0.7254464285714287
+    kBackLeftChassisAngularOffset = 0 #(0.16043526785714288 + math.pi)
+    kBackRightChassisAngularOffset = 0 #-0.43945312500000006
 
     kGyroReversed = -1
 

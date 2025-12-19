@@ -8,6 +8,7 @@ from phoenix6.orchestra import Orchestra
 from wpilib import Timer, DriverStation
 from wpimath.geometry import Rotation2d
 from wpimath.kinematics import SwerveModuleState, SwerveModulePosition
+from wpilib import SmartDashboard
 
 from constants import ModuleConstants
 
@@ -238,6 +239,67 @@ class PhoenixSwerveModule(Subsystem):
         drivingCurrent = self.drivingMotor.get_supply_current()
         turningCurrent = self.turningMotor.get_supply_current()
         return drivingCurrent, turningCurrent
+
+    def getCanCoderAngle(self) -> Rotation2d:
+        """
+        Returns the absolute module angle AFTER magnet offset,
+        as a Rotation2d in radians.
+        """
+        abs_rot = self.canCoder.get_absolute_position().value  # rotations [0, 1)
+        angle_rad = abs_rot * 2 * math.pi
+        return Rotation2d(angle_rad)
+
+    def getAbsoluteEncoderRadians(self) -> float:
+        return self.canCoder.get_absolute_position().value * 2 * math.pi
+
+    def publishDebug(self):
+        prefix = f"Swerve/{self.modulePlace}"
+
+        # Absolute CANcoder angle (hardware-offset applied)
+        abs_rad = self.canCoder.get_absolute_position().value * 2 * math.pi
+        abs_rot = Rotation2d(abs_rad)
+
+        # Turn motor integrated angle
+        turn_rad = self.getTurningPosition()
+        turn_rot = Rotation2d(turn_rad)
+
+        SmartDashboard.putNumber(
+            f"{prefix}/AbsAngleDeg",
+            abs_rot.degrees()
+        )
+
+        SmartDashboard.putNumber(
+            f"{prefix}/MagnetOffsetDeg",
+            self.canCoderOffset * 180 / math.pi
+        )
+
+        # This is the value that should be ~0° when wheels are straight
+        SmartDashboard.putNumber(
+            f"{prefix}/CorrectedAngleDeg",
+            abs_rot.degrees()
+        )
+
+        SmartDashboard.putNumber(
+            f"{prefix}/TurnMotorDeg",
+            turn_rot.degrees()
+        )
+
+        # Desired vs actual (great for catching drift or bad sync)
+        if self.desiredState:
+            desired_deg = self.desiredState.angle.degrees()
+
+            SmartDashboard.putNumber(
+                f"{prefix}/DesiredAngleDeg",
+                desired_deg
+            )
+
+            SmartDashboard.putNumber(
+                f"{prefix}/AngleErrorDeg",
+                (Rotation2d.fromDegrees(desired_deg) - abs_rot).degrees()
+            )
+        else:
+            SmartDashboard.putNumber(f"{prefix}/DesiredAngleDeg", 0)
+            SmartDashboard.putNumber(f"{prefix}/AngleErrorDeg", 0)
 
     # Orchestra
 
