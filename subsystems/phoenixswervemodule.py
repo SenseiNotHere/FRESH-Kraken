@@ -2,11 +2,7 @@ import math
 from commands2 import Subsystem
 from phoenix6.hardware import TalonFX, CANcoder
 from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, CurrentLimitsConfigs
-from phoenix6.signals import (
-    NeutralModeValue,
-    InvertedValue,
-    SensorDirectionValue,
-)
+from phoenix6.signals import NeutralModeValue, InvertedValue, SensorDirectionValue
 from phoenix6.controls import VelocityVoltage, PositionVoltage
 from phoenix6.orchestra import Orchestra
 from wpilib import Timer, DriverStation
@@ -105,11 +101,9 @@ class PhoenixSwerveModule(Subsystem):
         self.velocity_request = VelocityVoltage(0).with_slot(0)
         self.position_request = PositionVoltage(0).with_slot(0)
 
-        # Kalman timing
-        self.nextSyncTime = 0.0
-
         # Initial alignment
         self.resetEncoders()
+
 
         # Orchestra stuff
         self.orchestra = Orchestra([self.drivingMotor, self.turningMotor])
@@ -122,10 +116,17 @@ class PhoenixSwerveModule(Subsystem):
 
     def syncTurningEncoder(self) -> None:
         abs_rot = self.canCoder.get_absolute_position().value
-        self.turningMotor.set_position(abs_rot * ModuleConstants.kTurningMotorReduction)
+        target_rot = abs_rot * ModuleConstants.kTurningMotorReduction
+
+        current_rot = self.turningMotor.get_position().value
+        diff = current_rot - target_rot
+        wraps = round(diff / ModuleConstants.kTurningMotorReduction)
+
+        aligned = target_rot + wraps * ModuleConstants.kTurningMotorReduction
+        self.turningMotor.set_position(aligned)
 
     def periodic(self) -> None:
-        return  # no live syncing, ever
+        pass
 
     # State / Odometry
 

@@ -159,6 +159,8 @@ class DriveSubsystem(Subsystem):
             self.backRight.turningMotor,
         ])
 
+        self._hasSynced = False
+
     def getRobotRelativeSpeeds(self) -> ChassisSpeeds:
         """Returns the current robot-relative ChassisSpeeds"""
         return DrivingConstants.kDriveKinematics.toChassisSpeeds(
@@ -210,6 +212,17 @@ class DriveSubsystem(Subsystem):
         SmartDashboard.putNumber("Front Right Position", self.frontRight.getPosition().angle.degrees())
         SmartDashboard.putNumber("Back Left Position", self.backLeft.getPosition().angle.degrees())
         SmartDashboard.putNumber("Back Right Position", self.backRight.getPosition().angle.degrees())
+
+    def disabledInit(self):
+        if self._hasSynced:
+            return
+
+        self.frontLeft.syncTurningEncoder()
+        self.frontRight.syncTurningEncoder()
+        self.backLeft.syncTurningEncoder()
+        self.backRight.syncTurningEncoder()
+
+        self._hasSynced = True
 
     def getHeading(self) -> Rotation2d:
         return self.getPose().rotation()
