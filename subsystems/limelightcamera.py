@@ -34,28 +34,58 @@ class LimelightCamera(Subsystem):
         self.heartbeating = False
 
     def setPipeline(self, index: int):
+        """
+        Sets the current pipeline index.
+        :param index: The pipeline index to set.
+        """
         self.pipelineIndexRequest.set(float(index))
 
     def getPipeline(self) -> int:
+        """
+        Gets the current pipeline index.
+        :return: The current pipeline index.
+        """
         return int(self.pipelineIndex.get(-1))
 
     def getA(self) -> float:
+        """
+        Gets the target area.
+        :return: The target area.
+        """
         return self.ta.get()
 
     def getX(self) -> float:
+        """
+        Gets the horizontal offset from crosshair to target.
+        :return: The horizontal offset in degrees.
+        """
         return self.tx.get()
 
     def getY(self) -> float:
+        """
+        Gets the vertical offset from crosshair to target.
+        :return: The vertical offset in degrees.
+        """
         return self.ty.get()
 
     def getHB(self) -> float:
+        """
+        Gets the heartbeat value.
+        :return: The heartbeat value.
+        """
         return self.hb.get()
 
     def hasDetection(self):
+        """
+        :return: Whether the camera currently has a valid target detection.
+        """
         if self.getX() != 0.0 and self.heartbeating:
             return True
 
     def getSecondsSinceLastHeartbeat(self) -> float:
+        """
+        :return: The number of seconds since the last heartbeat was received.
+        """
         return Timer.getFPGATimestamp() - self.lastHeartbeatTime
 
     def periodic(self) -> None:
@@ -77,6 +107,11 @@ class LimelightCamera(Subsystem):
         self.table.putNumber("stream", mode)
 
 def _fix_name(name: str):
+    """
+    Ensures the camera name is valid for NetworkTables. | Not to be called directly.
+    :param name: The camera name.
+    :return: The fixed camera name.
+    """
     if not name:
         name = "limelight"
     return name

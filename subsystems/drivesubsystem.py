@@ -171,9 +171,9 @@ class DriveSubsystem(Subsystem):
         )
 
     def shouldFlipPath(self):
-        # Boolean supplier that controls when the path will be mirrored for the red alliance
-        # This will flip the path being followed to the red side of the field.
-        # THE ORIGIN WILL REMAIN ON THE BLUE SIDE
+        """
+        :return: Whether to flip the path based on alliance color
+        """
         return DriverStation.getAlliance() == DriverStation.Alliance.kRed
 
     def periodic(self) -> None:
@@ -218,6 +218,10 @@ class DriveSubsystem(Subsystem):
         SmartDashboard.putNumber("Back Right Position", self.backRight.getPosition().angle.degrees())
 
     def getHeading(self) -> Rotation2d:
+        """
+        :return: The robot's heading as a Rotation2d
+        """
+
         return self.getPose().rotation()
 
     def getPose(self) -> Pose2d:
@@ -254,6 +258,10 @@ class DriveSubsystem(Subsystem):
         SmartDashboard.putData("Field", self.field)
 
     def adjustOdometry(self, dTrans: Translation2d, dRot: Rotation2d):
+        """Adjusts the odometry by a specified translation and rotation delta.
+        :param dTrans: The translation delta to apply.
+        :param dRot: The rotation delta to apply.
+        """
         pose = self.getPose()
         newPose = Pose2d(pose.translation() + dTrans, pose.rotation() + dRot)
         self.odometry.resetPosition(
@@ -269,6 +277,9 @@ class DriveSubsystem(Subsystem):
         self.odometryHeadingOffset += dRot
 
     def stop(self):
+        """
+        Stops the robot by setting all speeds to zero.
+        """
         self.arcadeDrive(0, 0)
 
     def arcadeDrive(
@@ -277,6 +288,12 @@ class DriveSubsystem(Subsystem):
             rot: float,
             assumeManualInput: bool = False,
     ) -> None:
+        """
+        Drive the robot using arcade controls.
+        :param xSpeed: forward speed
+        :param rot: rotation speed
+        :param assumeManualInput: whether to square the inputs for manual control
+        """
         self.drive(xSpeed, 0, rot, False, False, square=assumeManualInput)
 
     def rotate(self, rotSpeed) -> None:

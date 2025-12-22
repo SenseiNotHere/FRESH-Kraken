@@ -104,10 +104,18 @@ class PhoenixSwerveModule(Subsystem):
     # Encoder Sync
 
     def resetEncoders(self) -> None:
+        """
+        Resets the driving motor encoder to zero and syncs the turning motor encoder
+        with the CANcoder's absolute position.
+        """
         self.drivingMotor.set_position(0)
         self.syncTurningEncoder(force=True)
 
     def syncTurningEncoder(self, force: bool = False) -> None:
+        """
+        Syncs the turning motor's encoder with the absolute position from the CANcoder.
+        :param force: If True, forces a sync.
+        """
         abs_signal = self.canCoder.get_absolute_position()
         abs_signal.refresh()
         absolute_rot = abs_signal.value  # 0–1 rotations
@@ -128,7 +136,7 @@ class PhoenixSwerveModule(Subsystem):
             * (ModuleConstants.kTurningDriftDegrees / 360.0)
         )
 
-        if force or abs(error) > drift_threshold:
+        if force:
             self.turningMotor.set_position(adjusted_target)
             return
 
@@ -151,16 +159,25 @@ class PhoenixSwerveModule(Subsystem):
     # State / Odometry
 
     def getTurningPosition(self) -> float:
+        """
+        :return: The current turning position of the swerve module in radians.
+        """
         motor_rot = self.turningMotor.get_position().value
         return motor_rot * self.steerMotorRotToRad
 
     def getState(self) -> SwerveModuleState:
+        """
+        :return: The current state of the swerve module.
+        """
         motor_rps = self.drivingMotor.get_velocity().value
         wheel_mps = motor_rps * self.driveMotorRpsToMps
         angle = self.getTurningPosition() - self.chassisAngularOffset
         return SwerveModuleState(wheel_mps, Rotation2d(angle))
 
     def getPosition(self) -> SwerveModulePosition:
+        """
+        :return: The current position of the swerve module.
+        """
         motor_rot = self.drivingMotor.get_position().value
         wheel_meters = motor_rot * self.driveMotorRotToMeters
         angle = self.getTurningPosition() - self.chassisAngularOffset
@@ -169,6 +186,12 @@ class PhoenixSwerveModule(Subsystem):
     # Optimize
 
     def _optimizeState(self, desired: SwerveModuleState) -> SwerveModuleState:
+        """
+        Optimize the desired state to minimize rotation.
+
+        :param desired: The desired SwerveModuleState.
+        :return: The optimized SwerveModuleState.
+        """
         current_angle = Rotation2d(self.getTurningPosition())
         target_angle = desired.angle
 
@@ -192,6 +215,12 @@ class PhoenixSwerveModule(Subsystem):
     # Control
 
     def setDesiredState(self, desiredState: SwerveModuleState) -> None:
+        """
+        Sets the desired state for the swerve module.
+
+        :param desiredState: The desired state to set.
+        :type desiredState: SwerveModuleState
+        """
         desired_module = SwerveModuleState(
             desiredState.speed,
             desiredState.angle + Rotation2d(self.chassisAngularOffset),
