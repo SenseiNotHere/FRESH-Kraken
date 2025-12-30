@@ -1,7 +1,7 @@
 import math
 from commands2 import Subsystem
 from phoenix6.hardware import TalonFX, CANcoder
-from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration
+from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, CurrentLimitsConfigs
 from phoenix6.signals import (
     NeutralModeValue,
     InvertedValue,
@@ -88,6 +88,23 @@ class PhoenixSwerveModule(Subsystem):
         turningConfig.slot0.k_d = ModuleConstants.kTurningD
         self.turningMotor.configurator.apply(turningConfig)
 
+        # Current limits
+        # Driving Current Limits
+        drivingCurrentLimits = CurrentLimitsConfigs()
+        drivingCurrentLimits.supply_current_limit = ModuleConstants.kDrivingMotorCurrentLimit
+        drivingCurrentLimits.stator_current_limit = ModuleConstants.kDrivingMotorStatorCurrentLimit
+        drivingCurrentLimits.supply_current_limit_enable = True
+        drivingCurrentLimits.stator_current_limit_enable = True
+        self.drivingMotor.configurator.apply(drivingCurrentLimits)
+
+        # Turning Current Limits
+        turningCurrentLimits = CurrentLimitsConfigs()
+        turningCurrentLimits.supply_current_limit = ModuleConstants.kTurningMotorCurrentLimit
+        turningCurrentLimits.stator_current_limit = ModuleConstants.kTurningStatorCurrentLimit
+        turningCurrentLimits.supply_current_limit_enable = True
+        turningCurrentLimits.stator_current_limit_enable = True
+        self.turningMotor.configurator.apply(turningCurrentLimits)
+
         # Control requests
         self.velocity_request = VelocityVoltage(0).with_slot(0)
         self.position_request = PositionVoltage(0).with_slot(0)
@@ -110,6 +127,14 @@ class PhoenixSwerveModule(Subsystem):
         """
         self.drivingMotor.set_position(0)
         self.syncTurningEncoder(force=True)
+
+    def syncAngle(self):
+        """
+        Synchronizes the turning motor encoder with the CANcoder's absolute position.
+        """
+        abs_angle = self.canCoder.get_absolute_position()
+        abs_angle.refresh()
+        self.turningMotor.set_position(abs_angle.value * ModuleConstants.kTurningMotorReduction)
 
     def syncTurningEncoder(self, force: bool = False) -> None:
         """
@@ -143,6 +168,8 @@ class PhoenixSwerveModule(Subsystem):
         if ModuleConstants.kTurningKalmanGain > 0:
             correction = -ModuleConstants.kTurningKalmanGain * error
             self.turningMotor.set_position(current_motor_rot + correction)
+
+    # Periodic
 
     def periodic(self) -> None:        
         # Kalman disabled? Do nothing.

@@ -122,8 +122,10 @@ class ModuleConstants:
     kDrivingMotorIdleMode = talon_fx.signals.NeutralModeValue(NeutralModeValue.BRAKE)
     kTurningMotorIdleMode = talon_fx.signals.NeutralModeValue(NeutralModeValue.COAST)
 
-    kDrivingMotorCurrentLimit = 50  # amp
-    kTurningMotorCurrentLimit = 20  # amp
+    kDrivingMotorCurrentLimit = 70 # amp
+    kDrivingMotorStatorCurrentLimit = 120 # amp
+    kTurningMotorCurrentLimit = 40 # amp
+    kTurningStatorCurrentLimit = 60 # amp
 
     kDrivingMinSpeedMetersPerSecond = 0.01
 
@@ -155,13 +157,13 @@ class AutoConstants:
 
     kUseSqrtControl = True  # improves arrival time and precision for simple driving commands
 
-    # below are really trajectory constants
+    # Below are really trajectory constants
     kMaxMetersPerSecond = 4.5
     kMaxAccelerationMetersPerSecondSquared = 3.5
     kMaxAngularSpeedRadiansPerSecond = 10.0
     kMaxAngularSpeedRadiansPerSecondSquared = 15.0
 
-    # PID Values
+    # PID Values2ZZZZ
     # "Safer" to change
     kPXController = 5.0
     kPYController = 5.0
