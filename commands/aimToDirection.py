@@ -1,7 +1,7 @@
 #
 # Copyright (c) FIRST and other WPILib contributors.
 # Open Source Software; you can modify and/or share it under the terms of
-# the WPILib BSD license files in the root directory of this project.
+# the WPILib BSD license file in the root directory of this project.
 #
 
 from __future__ import annotations
@@ -10,17 +10,18 @@ import math
 import typing
 import commands2
 
+from wpilib import SmartDashboard
 from wpimath.geometry import Rotation2d
 from constants import AutoConstants
 
 
 class AimToDirectionConstants:
-    kP = 0.002  # 0.002 is the default, but you must calibrate this to your robot
+    kP = 0.001  # 0.002 is the default, but you must calibrate this to your robot
     kUseSqrtControl = AutoConstants.kUseSqrtControl
 
-    kMinTurnSpeed = 0.03  # turning slower than this is unproductive for the motor (might not even spin)
-    kAngleToleranceDegrees = 3.0  # plus minus 3 degrees is "close enough" (increased from 2, in case robot was getting stuck on this)
-    kAngleVelocityToleranceDegreesPerSec = 50  # velocity under 100 degrees/second is considered "stopped"
+    kMinTurnSpeed = 0.025  # turning slower than this is unproductive for the motor (might not even spin)
+    kAngleToleranceDegrees = 4.0  # plus minus 3 degrees is "close enough"
+    kAngleVelocityToleranceDegreesPerSec = 1  # velocity under 100 degrees/second is considered "stopped"
 
 
 class AimToDirection(commands2.Command):
@@ -43,6 +44,7 @@ class AimToDirection(commands2.Command):
 
     def initialize(self):
         self.targetDirection = Rotation2d.fromDegrees(self.targetDegrees())
+        SmartDashboard.putString("command/c" + self.__class__.__name__, "running")
 
     def execute(self):
         # 1. how many degrees are left to turn?
@@ -74,6 +76,8 @@ class AimToDirection(commands2.Command):
 
     def end(self, interrupted: bool):
         self.drivetrain.arcadeDrive(0, 0)
+        if interrupted:
+            SmartDashboard.putString("command/c" + self.__class__.__name__, "interrupted")
 
     def isFinished(self) -> bool:
         if self.fwdSpeed != 0:
@@ -84,6 +88,8 @@ class AimToDirection(commands2.Command):
         degreesRemaining = rotationRemaining.degrees()
         # if we are pretty close to the direction we wanted, consider the command finished
         if abs(degreesRemaining) < AimToDirectionConstants.kAngleToleranceDegrees:
-            turnVelocity = self.drivetrain.getTurnRateDegreesPerSec()
+            turnVelocity = self.drivetrain.getTurnRate()
+            SmartDashboard.putString("command/c" + self.__class__.__name__, "good angle")
             if abs(turnVelocity) < AimToDirectionConstants.kAngleVelocityToleranceDegreesPerSec:
+                SmartDashboard.putString("command/c" + self.__class__.__name__, "completed")
                 return True

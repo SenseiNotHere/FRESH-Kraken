@@ -12,6 +12,7 @@ from pathplannerlib.config import RobotConfig, ModuleConfig, DCMotor
 
 class KrakenX60:
     kFreeSpeedRpm = 5800
+    kMaxSpeedMetersPerSecond = 2.8
 
 class DrivingConstants:
     #Driving Motors
@@ -96,8 +97,8 @@ class ModuleConstants:
 
     # radians are converted internally, these are MOTOR ROT units
     kTurningSyncIntervalSeconds = 0.25  # how often we check drift
-    kTurningKalmanGain = 0.05  # 0 = disabled, 0.02–0.08 is sane
-    kTurningDriftDegrees = 5.0  # hard snap threshold
+    kTurningKalmanGain = 0.08  # 0 = disabled, 0.02–0.08 is sane
+    kTurningDriftDegrees = 2.0  # hard snap threshold
 
     kTurningEncoderPositionFactor = math.tau  # radian
     kTurningEncoderVelocityFactor = math.tau / 60.0  # radians per second
@@ -112,7 +113,7 @@ class ModuleConstants:
     kDrivingMinOutput = -1
     kDrivingMaxOutput = 1
 
-    kTurningP = 2.0  # can be dialed down if you see oscillations in the turning motor
+    kTurningP = 3.0  # can be dialed down if you see oscillations in the turning motor
     kTurningI = 0
     kTurningD = 0
     kTurningFF = 0.05
@@ -158,12 +159,12 @@ class AutoConstants:
     kUseSqrtControl = True  # improves arrival time and precision for simple driving commands
 
     # Below are really trajectory constants
-    kMaxMetersPerSecond = 4.5
+    kMaxMetersPerSecond = 1.2
     kMaxAccelerationMetersPerSecondSquared = 3.5
-    kMaxAngularSpeedRadiansPerSecond = 10.0
-    kMaxAngularSpeedRadiansPerSecondSquared = 15.0
+    kMaxAngularSpeedRadiansPerSecond = 5
+    kMaxAngularSpeedRadiansPerSecondSquared = 25.0
 
-    # PID Values2ZZZZ
+    # PID Values
     # "Safer" to change
     kPXController = 5.0
     kPYController = 5.0

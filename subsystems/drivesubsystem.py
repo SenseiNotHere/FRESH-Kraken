@@ -126,25 +126,24 @@ class DriveSubsystem(Subsystem):
 
         AutoBuilder.configure(
             self.getPose,  # Robot pose supplier
-            self.resetOdometry,  # Method to reset odometry (will be called if your auto has a starting pose)
-            self.getRobotRelativeSpeeds,  # ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
-            lambda speeds, feedforwards: self.drive(speeds.vx, speeds.vy, speeds.omega, True, True),
-            # Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds. Also outputs individual module feedforwards
-            PPHolonomicDriveController(
+            self.resetOdometry,  # Reset odometry at auto start
+            self.getRobotRelativeSpeeds,  # MUST be robot-relative speeds
+            lambda speeds, feedforwards: self.driveRobotRelativeChassisSpeeds(speeds),
+        PPHolonomicDriveController(
                 PIDConstants(
                     AutoConstants.kPXController,
                     AutoConstants.kIXController,
                     AutoConstants.kDXController
-                ), # Translation PID Values
+                ),
                 PIDConstants(
                     AutoConstants.kPThetaController,
                     AutoConstants.kIThetaController,
                     AutoConstants.kDThetaController
-                ) # Rotation PID Values
+                )
             ),
-            AutoConstants.config,  # The robot configuration
-            self.shouldFlipPath,  # Supplier to control path flipping based on alliance color
-            self  # Reference to this subsystem to set requirements
+            AutoConstants.config,  # RobotConfig
+            self.shouldFlipPath,  # Alliance-based flipping
+            self  # Subsystem requirement
         )
 
         # Initialize Orchestra for playing music through all motors
@@ -419,6 +418,16 @@ class DriveSubsystem(Subsystem):
         )
         fl, fr, rl, rr = SwerveDrive4Kinematics.desaturateWheelSpeeds(
             swerveModuleStates, DrivingConstants.kMaxMetersPerSecond
+        )
+        self.frontLeft.setDesiredState(fl)
+        self.frontRight.setDesiredState(fr)
+        self.backLeft.setDesiredState(rl)
+        self.backRight.setDesiredState(rr)
+
+    def driveRobotRelativeChassisSpeeds(self, speeds: ChassisSpeeds) -> None:
+        states = DrivingConstants.kDriveKinematics.toSwerveModuleStates(speeds)
+        fl, fr, rl, rr = SwerveDrive4Kinematics.desaturateWheelSpeeds(
+            states, DrivingConstants.kMaxMetersPerSecond
         )
         self.frontLeft.setDesiredState(fl)
         self.frontRight.setDesiredState(fr)

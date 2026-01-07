@@ -1,8 +1,7 @@
-
 #
 # Copyright (c) FIRST and other WPILib contributors.
 # Open Source Software; you can modify and/or share it under the terms of
-# the WPILib BSD license files in the root directory of this project.
+# the WPILib BSD license file in the root directory of this project.
 #
 
 from __future__ import annotations
@@ -137,7 +136,8 @@ class SwerveMove(commands2.Command):
         metersBackwards: float,
         drivetrain: DriveSubsystem,
         speed=1.0,
-        heading=None
+        heading=None,
+        slowDownAtFinish=True,
     ) -> None:
         super().__init__()
         self.drivetrain = drivetrain
@@ -145,15 +145,20 @@ class SwerveMove(commands2.Command):
         self.speed = speed
         self.metersToTheLeft = metersToTheLeft
         self.metersBackwards = metersBackwards
+        self.slowdownAtFinish = slowDownAtFinish
+
         self.desiredHeading = heading
+        if heading is not None and not callable(heading):
+            self.desiredHeading = lambda: heading
+
         self.subcommand = None
 
     def initialize(self):
         position = self.drivetrain.getPose()
-        heading = self.desiredHeading if self.desiredHeading is not None else position.rotation()
+        heading = self.desiredHeading() if self.desiredHeading is not None else position.rotation()
         tgt = position.translation() + Translation2d(x=-self.metersBackwards, y=self.metersToTheLeft).rotateBy(heading)
         self.subcommand = SwerveToPoint(
-            x=tgt.x, y=tgt.y, headingDegrees=heading.degrees(), drivetrain=self.drivetrain, speed=self.speed
+            x=tgt.x, y=tgt.y, headingDegrees=heading.degrees(), drivetrain=self.drivetrain, speed=self.speed, slowDownAtFinish=self.slowdownAtFinish
         )
         self.subcommand.initialize()
 

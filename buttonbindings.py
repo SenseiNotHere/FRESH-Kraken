@@ -7,7 +7,8 @@ from constants import OIConstants
 
 from commands.reset_XY import ResetXY, ResetSwerveFront
 from commands.followObject import FollowObject
-from commands.setCameraPipeline import SetCameraPipeline
+from commands.approach import ApproachTag
+from commands.limelightComands import SetCameraPipeline
 
 class ButtonBindings:
     def __init__(self, robot_container):
@@ -24,7 +25,14 @@ class ButtonBindings:
         # Driver Controls
         # Reset XY Position
         povUpDriverButton = self.driverController.pov(0)
-        povUpDriverButton.onTrue(ResetXY(x=0.0, y=0.0, headingDegrees=0.0, drivetrain=self.robotDrive))
+        povUpDriverButton.onTrue(
+            ResetXY(
+                x=0.0,
+                y=0.0,
+                headingDegrees=0.0,
+                drivetrain=self.robotDrive
+            )
+        )
 
         # Reset Swerve Front
         povDownDriverButton = self.driverController.pov(180)
@@ -36,8 +44,14 @@ class ButtonBindings:
 
         # Follow Object
         yDriverButton = self.driverController.button(XboxController.Button.kY)
-        yDriverButton.onTrue(SetCameraPipeline(self.limelight, 0))
-        yDriverButton.whileTrue(FollowObject(camera=self.limelight, drivetrain=self.robotDrive))
+        yDriverButton.whileTrue(
+            ApproachTag(
+                camera=self.limelight,
+                drivetrain=self.robotDrive,
+                dashboardName="ApproachTag",
+                reverse=True
+            )
+        )
 
         # Play selected song
         bButton = self.driverController.button(XboxController.Button.kB)

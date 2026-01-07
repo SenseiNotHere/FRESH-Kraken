@@ -2,7 +2,6 @@ from __future__ import annotations
 import math
 
 import commands2
-import phoenix6.controls
 import wpimath
 import wpilib
 import typing
@@ -11,8 +10,7 @@ from commands2 import cmd, InstantCommand, RunCommand
 from commands2.button import CommandGenericHID
 from wpilib import XboxController, PS4Controller, SmartDashboard, DriverStation, DutyCycle
 from wpimath.controller import PIDController, ProfiledPIDControllerRadians, HolonomicDriveController
-from wpimath.geometry import Pose2d, Rotation2d, Translation2d
-from wpimath.trajectory import TrajectoryConfig, TrajectoryGenerator
+from wpimath.geometry import Pose2d, Rotation2d, Translation2d, Translation3d
 from wpimath.kinematics import (
     ChassisSpeeds,
     SwerveModuleState,
@@ -22,16 +20,15 @@ from wpimath.kinematics import (
 
 from subsystems.drivesubsystem import DriveSubsystem, AutoBuilder, BadSimPhysics
 from subsystems.limelightcamera import LimelightCamera
+from subsystems.limelight_localizer import LimelightLocalizer
 from commands.holonomicDrive import HolonomicDrive
+from commands.approach import ApproachTag
 from buttonbindings import ButtonBindings
 from constants import OIConstants
 
 from subsystems.phoenixswervemodule import PhoenixSwerveModule
 from constants import *
-
-from commands.reset_XY import ResetXY, ResetSwerveFront
-from commands.followObject import FollowObject
-from commands.setCameraPipeline import SetCameraPipeline
+import tests
 
 
 class RobotContainer:
@@ -49,6 +46,9 @@ class RobotContainer:
         # Auto chooser
         self.autoChooser = AutoBuilder.buildAutoChooser()
         SmartDashboard.putData("Auto Chooser", self.autoChooser)
+
+        # Test chooser
+        self.testChooser = wpilib.SendableChooser()
         
         # Song chooser
         self.songChooser = wpilib.SendableChooser()
@@ -56,12 +56,41 @@ class RobotContainer:
         self.songChooser.addOption("Yes And? - Ariana Grande", "/home/lvuser/py/deploy/files/Yesand.chrp")
         self.songChooser.addOption("Lavender Town", "/home/lvuser/py/deploy/files/LavenderTown.chrp")
         self.songChooser.addOption("Espresso - Sabrina Carpenter", "/home/lvuser/py/deploy/files/Espresso.chrp")
+        self.songChooser.addOption("Needy - Ariana Grande", "/home/lvuser/py/deploy/files/Needy.chrp")
         SmartDashboard.putData("Song Selection", self.songChooser)
 
         #Setting up controllers
         self.driverController = CommandGenericHID(OIConstants.kDriverControllerPort)
-        self.limelight = LimelightCamera("limelight")
-        self.limelight.setPiPMode(1)
+        self.localizer = LimelightLocalizer(
+            drivetrain=self.robotDrive,
+            flipIfRed=True
+        )
+        self.limelight = LimelightCamera("limelight-front")
+        self.limelightBack = LimelightCamera("limelight-back")
+        self.limelightBack.setPiPMode(1)
+
+        self.localizer.addCamera(
+            camera=self.limelight,
+            cameraPoseOnRobot=Translation3d(
+                0.00,   # X forward (meters)
+                0.00,   # Y left (meters)
+                0.00    # Z up (meters)
+            ),
+            cameraHeadingOnRobot=Rotation2d.fromDegrees(0),
+            minPercentFrame=0.07,
+            maxRotationSpeed=720  # optional sanity limit
+        )
+        self.localizer.addCamera(
+            camera=self.limelightBack,
+            cameraPoseOnRobot=Translation3d(
+                -18.00,
+                0.00,
+                0.00
+            ),
+            cameraHeadingOnRobot=Rotation2d.fromDegrees(180),
+            minPercentFrame=0.07,
+            maxRotationSpeed=720
+        )
 
         self.robotDrive.setDefaultCommand(
             HolonomicDrive(
@@ -101,3 +130,5 @@ class RobotContainer:
         """
         :returns: the command that will be running when test mode is enabled
         """
+        self.testChooser.setDefaultOption("None", None)
+        self.testChooser.addOption("Drivetrain ", InstantCommand(tests.drivetrainTest.testDrive(self.robotDrive)))
