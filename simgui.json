@@ -2,8 +2,18 @@
   "NTProvider": {
     "types": {
       "/FMSInfo": "FMSInfo",
+      "/SmartDashboard/ApproachTagAllowOOS": "String Chooser",
+      "/SmartDashboard/ApproachTagGainRot": "String Chooser",
+      "/SmartDashboard/ApproachTagGainTran": "String Chooser",
+      "/SmartDashboard/ApproachTagHeadng+-": "String Chooser",
+      "/SmartDashboard/ApproachTagTolernce": "String Chooser",
+      "/SmartDashboard/ApproachTagTrjShape": "String Chooser",
       "/SmartDashboard/Auto Chooser": "String Chooser",
-      "/SmartDashboard/Field": "Field2d"
+      "/SmartDashboard/Field": "Field2d",
+      "/SmartDashboard/LocaLearnRate": "String Chooser",
+      "/SmartDashboard/Localizer": "String Chooser",
+      "/SmartDashboard/Song Selection": "String Chooser",
+      "/SmartDashboard/Test Chooser": "String Chooser"
     }
   },
   "NetworkTables": {

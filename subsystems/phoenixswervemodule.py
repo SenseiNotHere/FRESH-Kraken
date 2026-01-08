@@ -3,7 +3,7 @@ from commands2 import Subsystem
 from phoenix6.hardware import TalonFX, CANcoder
 from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, CurrentLimitsConfigs
 from phoenix6.signals import NeutralModeValue, InvertedValue, SensorDirectionValue
-from phoenix6.controls import VelocityVoltage, PositionVoltage, MotionMagicVoltage
+from phoenix6.controls import VelocityVoltage, MotionMagicVoltage
 from phoenix6.orchestra import Orchestra
 from wpilib import Timer, DriverStation
 from wpimath.geometry import Rotation2d
@@ -82,6 +82,10 @@ class PhoenixSwerveModule(Subsystem):
         turningConfig.slot0.k_p = ModuleConstants.kTurningP
         turningConfig.slot0.k_i = ModuleConstants.kTurningI
         turningConfig.slot0.k_d = ModuleConstants.kTurningD
+        turningConfig.slot0.k_v = ModuleConstants.kTurningFF
+        turningConfig.motion_magic.cruise_velocity = ModuleConstants.kTurnCruiseVelocity
+        turningConfig.motion_magic.acceleration = ModuleConstants.kTurnAcceleration
+        turningConfig.motion_magic.jerk = ModuleConstants.kTurnJerk
         self.turningMotor.configurator.apply(turningConfig)
 
         # Current limits
@@ -103,7 +107,6 @@ class PhoenixSwerveModule(Subsystem):
 
         # Control requests
         self.velocity_request = VelocityVoltage(0).with_slot(0)
-        self.position_request = PositionVoltage(0).with_slot(0)
         self.turning_request = MotionMagicVoltage(0).with_slot(0)
 
         # Kalman timing
@@ -259,18 +262,11 @@ class PhoenixSwerveModule(Subsystem):
         )
 
         # Turn
-        current_motor_rot = self.turningMotor.get_position().value
         target_motor_rot = optimized.angle.radians() * self.radToSteerMotorRot
 
-        delta = target_motor_rot - current_motor_rot
-        while delta > math.pi * self.radToSteerMotorRot:
-            delta -= 2 * math.pi * self.radToSteerMotorRot
-        while delta < -math.pi * self.radToSteerMotorRot:
-            delta += 2 * math.pi * self.radToSteerMotorRot
-
         self.turningMotor.set_control(
-            self.position_request.with_position(
-                current_motor_rot + delta
+            self.turning_request.with_position(
+                target_motor_rot
             )
         )
 

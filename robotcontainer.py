@@ -49,6 +49,7 @@ class RobotContainer:
 
         # Test chooser
         self.testChooser = wpilib.SendableChooser()
+        SmartDashboard.putData("Test Chooser", self.testChooser)
         
         # Song chooser
         self.songChooser = wpilib.SendableChooser()
@@ -132,3 +133,9 @@ class RobotContainer:
         """
         self.testChooser.setDefaultOption("None", None)
         self.testChooser.addOption("Drivetrain ", InstantCommand(tests.drivetrainTest.testDrive(self.robotDrive)))
+
+        command = self.testChooser.getSelected()
+        if command is None:
+            print("WARNING: No test routines selected!")
+            return None
+        return command

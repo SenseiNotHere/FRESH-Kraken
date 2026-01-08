@@ -115,7 +115,7 @@ class ModuleConstants:
 
     # Turning Sync / Drift Control
     kTurningSyncIntervalSeconds = 0.25
-    kTurningKalmanGain = 0.05
+    kTurningKalmanGain = 0.0 #0.05
     kTurningDriftDegrees = 10.0
 
     kTurningSyncMaxVelocity = 0.5
