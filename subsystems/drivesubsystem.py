@@ -493,10 +493,10 @@ class DriveSubsystem(Subsystem):
         self.frontRight.resetWheels()
         self.backRight.resetWheels()
 
-    def isSteerReady(self, tolerance_deg=2.0) -> bool:
+    def isSteerReady(self, tolerance_rad=2.0/57.) -> bool:
         """
         Returns True if all swerve modules are within tolerance of their desired angle.
-        :param tolerance_deg: Allowed angle error (degrees) before a module is considered aligned.
+        :param tolerance_rad: Allowed angle error (degrees) before a module is considered aligned.
         :return:
         """
         modules = [
@@ -511,7 +511,7 @@ class DriveSubsystem(Subsystem):
                 m.getTurningPosition()
                 - m.desiredState.angle.radians()
             )
-            if math.degrees(error) > tolerance_deg:
+            if math.degrees(error) > tolerance_rad:
                 return False
 
         return True
