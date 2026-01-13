@@ -62,6 +62,6 @@ class ButtonBindings:
         aButton.onTrue(InstantCommand(lambda: self.robotDrive.stopSound()))
 
         # Enable Shooter
-#        xButton = self.driverController.button(XboxController.Button.kX)
-#        xButton.whileTrue(InstantCommand(self.robotContainer.shooter.enable))
-#        xButton.whenReleased(InstantCommand(self.robotContainer.shooter.disable))
+        xButton = self.driverController.button(XboxController.Button.kX)
+        xButton.whileTrue(InstantCommand(lambda: self.robotContainer.shooter.enable()))
+        xButton.whileFalse(InstantCommand(lambda: self.robotContainer.shooter.disable()))

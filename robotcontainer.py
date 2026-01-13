@@ -21,7 +21,7 @@ from wpimath.kinematics import (
 from subsystems.drivesubsystem import DriveSubsystem, BadSimPhysics,AutoBuilder
 from subsystems.limelightcamera import LimelightCamera
 from subsystems.limelight_localizer import LimelightLocalizer
-from subsystems.shooter import Shooter
+from subsystems.shootersubsystem import Shooter
 from commands.holonomicDrive import HolonomicDrive
 from commands.approach import ApproachTag
 from buttonbindings import ButtonBindings
@@ -107,7 +107,7 @@ class RobotContainer:
         )
 
         # Shooter
-#        self.shooter = Shooter(motorCANID=ShooterConstants.kMotor1CANID, motorInverted=False)
+        self.shooter = Shooter(motorCANID=ShooterConstants.kShooterMotorID, motorInverted=False)
 
 
         # Initialize button bindings

@@ -240,8 +240,7 @@ class AutoConstants:
 
 class ShooterConstants:
     # CAN IDs
-    kMotor1CANID = 1
-    kMotor2CANID = 2
+    kShooterMotorID = 9
 
     # RPM Limits
     kMinRPM = 600        # minimum sensible non-zero RPM
@@ -253,3 +252,11 @@ class ShooterConstants:
     kP = 5.0 / 10000
     kD = 0.0 / 10000
 
+class IntakeConstants:
+    kLeadMotorCANID = 1
+    kFollowerMotorCANID = 2
+
+    # Control Gains
+    kFF = 0.00015
+    kP = 0.0005
+    kD = 0.0

@@ -1,5 +1,5 @@
 from commands2 import Command
-from subsystems.shooter import Shooter
+from subsystems.shootersubsystem import Shooter
 
 class RunShooter(Command):
     def __init__(self, shooter: Shooter):

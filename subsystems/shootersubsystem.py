@@ -1,3 +1,5 @@
+import time
+
 from commands2 import Subsystem
 from phoenix6.configs import TalonFXConfiguration, Slot0Configs
 from phoenix6.hardware import TalonFX
@@ -58,12 +60,20 @@ class Shooter(Subsystem):
         # Enabled State
         self.enabled = False
 
+        # Run For Time State
+        self.runForTimeActive = False
+        self.runForTimeEndTime = 0.0
+
     # Periodic
     def periodic(self):
-        if self.enabled:
+        if self.runForTimeActive and time.time() >= self.runForTimeEndTime:
+            self.runForTimeActive = False
+            self.velocitySetpointRPM = 0.0
+
+        if self.enabled and not self.runForTimeActive:
             percent = self.speedChooser.getSelected()
             self.setVelocityRPM(percent * ShooterConstants.kMaxRPM)
-        else:
+        elif not self.enabled and not self.runForTimeActive:
             self.velocitySetpointRPM = 0.0
 
         self.velocityRequest = self.velocityRequest.with_velocity(
@@ -80,16 +90,27 @@ class Shooter(Subsystem):
             self.velocitySetpointRPM - measuredRPM
         )
 
-    # Public API
-    def setVelocityRPM(self, rpm: float):
+    # Private API
+
+    def _setVelocityRPM(self, rpm: float):
         self.velocitySetpointRPM = max(
             min(rpm, ShooterConstants.kMaxRPM),
             0.0
         )
 
-    def stop(self):
+    def _stop(self):
         self.velocitySetpointRPM = 0.0
         self.motor.set_control(self.velocityRequest.with_velocity(0.0))
+
+    # Public API
+
+    def setVelocityRPM(self, rpm: float):
+        self._setVelocityRPM(rpm)
+
+    def runForTime(self, rpm: float, seconds: float):
+        self._setVelocityRPM(rpm)
+        self.runForTimeActive = True
+        self.runForTimeEndTime = time.time() + seconds
 
     def getVelocityRPM(self) -> float:
         return self.motor.get_velocity().value
@@ -99,4 +120,4 @@ class Shooter(Subsystem):
 
     def disable(self):
         self.enabled = False
-        self.stop()
+        self._stop()
