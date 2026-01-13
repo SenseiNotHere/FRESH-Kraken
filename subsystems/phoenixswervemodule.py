@@ -296,8 +296,9 @@ class FusedTurningAngle:
     def observe(self, absolute_rotations: float, relative_rotations: float) -> None:
         """
         Makes an observation of the distance between absolute and relative rotation sensors.
-        :absolute_rotations: (float): The file path to the music file to be loaded.
-        :relative_rotations: (float): The file path to the music file to be loaded.
+
+        :absolute_rotations: (float): the reading of absolute encoder (in rotations)
+        :relative_rotations: (float): the reading of relative encoder (in rotations)
         """
         if self.not_ready:
             self.relative_minus_absolute = relative_rotations - absolute_rotations
