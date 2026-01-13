@@ -117,7 +117,7 @@ class ModuleConstants:
     kTurningEncoderPositionPIDMaxInput = kTurningEncoderPositionFactor
 
     # Sync / Drift Control
-    kTurningSyncIntervalSeconds = 0.25
+    kFusedAngleRefreshSeconds = 0.25
     kTurningKalmanGain = 0.05
     kTurningDriftDegrees = 10.0
 

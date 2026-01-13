@@ -5,12 +5,14 @@ from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, Curren
 from phoenix6.signals import NeutralModeValue, InvertedValue, SensorDirectionValue
 from phoenix6.controls import VelocityVoltage, PositionVoltage, MotionMagicVoltage
 from phoenix6.orchestra import Orchestra
-from wpilib import Timer, DriverStation
+from wpilib import Timer, DriverStation, SmartDashboard
 from wpimath.geometry import Rotation2d
 from wpimath.kinematics import SwerveModuleState, SwerveModulePosition
 
 from constants import ModuleConstants
 
+
+DEBUG_FUSED_ANGLE = True
 
 class PhoenixSwerveModule(Subsystem):
     def __init__(
@@ -39,6 +41,9 @@ class PhoenixSwerveModule(Subsystem):
         self.driveMotorRpsToMps = self.driveMotorRotToMeters
 
         # steering motorRot -> radians
+        self.steerFusedAngle = FusedTurningAngle(modulePlace)
+        self.nextFuseTime = 0.0
+
         self.steerMotorRotToRad = (2 * math.pi) / ModuleConstants.kTurningMotorReduction
         self.radToSteerMotorRot = 1.0 / self.steerMotorRotToRad
 
@@ -106,9 +111,6 @@ class PhoenixSwerveModule(Subsystem):
         self.position_request = PositionVoltage(0).with_slot(0)
         self.turning_request = MotionMagicVoltage(0).with_slot(0)
 
-        # Kalman timing
-        self.nextSyncTime = 0.0
-
         # Initial alignment
         self.resetEncoders()
 
@@ -119,74 +121,28 @@ class PhoenixSwerveModule(Subsystem):
 
     def resetEncoders(self) -> None:
         """
-        Resets the driving motor encoder to zero and syncs the turning motor encoder
-        with the CANcoder's absolute position.
+        Resets the driving motor encoder to zero
         """
         self.drivingMotor.set_position(0)
-        self.syncTurningEncoder(force=True)
 
-    def resetWheels(self) -> None:
-        """Resets the wheels to absolute zero rotation."""
-        self.drivingMotor.set_position(0)
-        self._syncAngle()
-        abs = self.canCoder.get_absolute_position()
-        abs.refresh()
-        self.turningMotor.set_position(abs.value * ModuleConstants.kTurningMotorReduction)
-
-    def _syncAngle(self):
-        """
-        Synchronizes the turning motor encoder with the CANcoder's absolute position.
-        """
-        abs_angle = self.canCoder.get_absolute_position()
-        abs_angle.refresh()
-        self.turningMotor.set_position(abs_angle.value * ModuleConstants.kTurningMotorReduction)
-
-    def syncTurningEncoder(self, force: bool = False) -> None:
-        """
-        Syncs the turning motor's encoder with the absolute position from the CANcoder.
-        :param force: If True, forces a sync.
-        """
-        abs_signal = self.canCoder.get_absolute_position()
-        abs_signal.refresh()
-        absolute_rot = abs_signal.value  # 0–1 rotations
-
-        current_motor_rot = self.turningMotor.get_position().value
-        target_motor_rot = absolute_rot * ModuleConstants.kTurningMotorReduction
-
-        diff = current_motor_rot - target_motor_rot
-        full_rotations = round(diff / ModuleConstants.kTurningMotorReduction)
-        adjusted_target = (
-            target_motor_rot
-            + full_rotations * ModuleConstants.kTurningMotorReduction
-        )
-
-        error = current_motor_rot - adjusted_target
-        drift_threshold = (
-            ModuleConstants.kTurningMotorReduction
-            * (ModuleConstants.kTurningDriftDegrees / 360.0)
-        )
-
-        if force or abs(error) > drift_threshold:
-            self.turningMotor.set_position(adjusted_target)
-            return
-
-        if ModuleConstants.kTurningKalmanGain > 0:
-            correction = -ModuleConstants.kTurningKalmanGain * error
-            self.turningMotor.set_position(current_motor_rot + correction)
-
-    # Periodic
 
     def periodic(self) -> None:
-        # Kalman disabled? Do nothing.
-        if ModuleConstants.kTurningKalmanGain <= 0:
-            return
-
         now = Timer.getFPGATimestamp()
-        if now < self.nextSyncTime:
+        if now < self.nextFuseTime:
             return
+        self.nextFuseTime = now + ModuleConstants.kFusedAngleRefreshSeconds
 
-        self.nextSyncTime = now + ModuleConstants.kTurningSyncIntervalSeconds
-        self.syncTurningEncoder()
+        relative, absolute = self.turningMotor.get_position(), self.canCoder.get_absolute_position()
+        if absolute.status.is_ok() and relative.status.is_ok():
+            self.steerFusedAngle.observe(
+                absolute.value,
+                relative.value / ModuleConstants.kTurningMotorReduction
+            )
+
+        elif not absolute.status.is_ok():
+            self.steerFusedAngle.complain("absolute encoder unavailable")
+        elif not relative.status.is_ok():
+            self.steerFusedAngle.complain("relative encoder unavailable")
 
     # State / Odometry
 
@@ -194,8 +150,10 @@ class PhoenixSwerveModule(Subsystem):
         """
         :return: The current turning position of the swerve module in radians.
         """
-        motor_rot = self.turningMotor.get_position().value
-        return motor_rot * self.steerMotorRotToRad
+        motor_rot = self.steerFusedAngle.to_absolute_rotations(
+            self.turningMotor.get_position().value / ModuleConstants.kTurningMotorReduction
+        )
+        return 2 * math.pi * motor_rot
 
     def getState(self) -> SwerveModuleState:
         """
@@ -267,18 +225,12 @@ class PhoenixSwerveModule(Subsystem):
         )
 
         # Turn
-        current_motor_rot = self.turningMotor.get_position().value
-        target_motor_rot = optimized.angle.radians() * self.radToSteerMotorRot
-
-        delta = target_motor_rot - current_motor_rot
-        while delta > math.pi * self.radToSteerMotorRot:
-            delta -= 2 * math.pi * self.radToSteerMotorRot
-        while delta < -math.pi * self.radToSteerMotorRot:
-            delta += 2 * math.pi * self.radToSteerMotorRot
-
+        desired_rotations = self.steerFusedAngle.to_absolute_rotations(
+            optimized.angle.radians() / (2 * math.pi)
+        )
         self.turningMotor.set_control(
             self.position_request.with_position(
-                current_motor_rot + delta
+                desired_rotations * ModuleConstants.kTurningMotorReduction
             )
         )
 
@@ -323,3 +275,51 @@ class PhoenixSwerveModule(Subsystem):
         Stops the music playback by halting the orchestra.
         """
         self.orchestra.stop()
+
+
+class FusedTurningAngle:
+    """
+    Converts the absolute rotations of the relative encoder into absolute rotations of absolute, and vice versa.
+    (by observing the values these angles take)
+    """
+    def __init__(self, place: str):
+        self.place = place
+        self.relative_minus_absolute = 0.0
+        self.not_ready = "no observations"
+
+    def to_relative_rotations(self, absolute_rotations: float) -> float:
+        return absolute_rotations + self.relative_minus_absolute
+
+    def to_absolute_rotations(self, relative_rotations: float) -> float:
+        return relative_rotations - self.relative_minus_absolute
+
+    def observe(self, absolute_rotations: float, relative_rotations: float) -> None:
+        """
+        Makes an observation of the distance between absolute and relative rotation sensors.
+        :absolute_rotations: (float): The file path to the music file to be loaded.
+        :relative_rotations: (float): The file path to the music file to be loaded.
+        """
+        if self.not_ready:
+            self.relative_minus_absolute = relative_rotations - absolute_rotations
+            self.complain("")
+            return
+
+        observation = relative_rotations - absolute_rotations
+        while observation - self.relative_minus_absolute > 0.5:
+            observation -= 1.0  # wrap around
+        while observation - self.relative_minus_absolute < -0.5:
+            observation += 1.0  # wrap around
+        if ModuleConstants.kTurningKalmanGain > 0:
+            correction = ModuleConstants.kTurningKalmanGain * (observation - self.relative_minus_absolute)
+            self.relative_minus_absolute += correction
+
+        if DEBUG_FUSED_ANGLE:
+            SmartDashboard.putNumber(f"fusedAngle_{self.place}/absolute", absolute_rotations)
+            SmartDashboard.putNumber(f"fusedAngle_{self.place}/relative", relative_rotations)
+            SmartDashboard.putNumber(f"fusedAngle_{self.place}/offset", self.relative_minus_absolute)
+
+
+    def complain(self, reason):
+        if reason != self.not_ready:
+            SmartDashboard.putString(f"fusedAngle_{self.place}/not_ready", reason)
+            self.not_ready = reason
