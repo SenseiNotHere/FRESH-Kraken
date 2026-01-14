@@ -397,10 +397,6 @@ class DriveSubsystem(Subsystem):
             )
             self.currentRotation = self.rotLimiter.calculate(rot)
 
-            SmartDashboard.putNumber("drivetrain/directionGoal", self.currentTranslationDir)
-            SmartDashboard.putNumber("drivetrain/speedGoal", self.currentTranslationMag)
-            SmartDashboard.putNumber("drivetrain/rotGoal", self.currentRotation)
-
         else:
             self.currentRotation = rot
 
@@ -408,6 +404,15 @@ class DriveSubsystem(Subsystem):
         xSpeedDelivered = xSpeedCommanded * DrivingConstants.kMaxMetersPerSecond
         ySpeedDelivered = ySpeedCommanded * DrivingConstants.kMaxMetersPerSecond
         rotDelivered = self.currentRotation * DrivingConstants.kMaxAngularSpeed
+
+
+        SmartDashboard.putNumber("drivetrain/directionGoal", self.currentTranslationDir)
+        SmartDashboard.putNumber("drivetrain/speedGoal", self.currentTranslationMag)
+        SmartDashboard.putNumber("drivetrain/rotGoal", self.currentRotation)
+        SmartDashboard.putNumber("drivetrain/xSpeedGoal", xSpeedDelivered)
+        SmartDashboard.putNumber("drivetrain/ySpeedGoal", ySpeedDelivered)
+        SmartDashboard.putNumber("drivetrain/rateLimit", int(rateLimit))
+
 
         SmartDashboard.putBoolean(
             "Pure Rotation Mode",
