@@ -21,6 +21,7 @@ class CameraState:
     camera: LimelightCamera
     cameraPoseOnRobot: Translation3d
     cameraHeadingOnRobot: Rotation2d
+    cameraPitchAngleDegrees: float
     minPercentFrame: float
     maxRotationSpeed: float
 
@@ -57,21 +58,22 @@ class LimelightLocalizer(Subsystem):
         camera: LimelightCamera,
         cameraPoseOnRobot: Translation3d,
         cameraHeadingOnRobot: Rotation2d,
+        cameraPitchAngleDegrees: float = 0.0,
         minPercentFrame: float = 0.07,
-        maxRotationSpeed: float = 999,
+        maxRotationSpeed: float = 120,
     ) -> None:
         """
         :param camera: camera to add
         :param cameraPoseOnRobot: is camera x=0.3 meters to the front of the robot center and y=-0.2 meters to right?
         :param cameraHeadingOnRobot: is this camera looking straight forward (Rotation2d.fromDegrees(0)), or maybe right (Rotation2d.fromDegrees(-90)) ?
-        :param maxDistanceMeters: only use this camera for localization if distance to tag is under so many meters
+        :param cameraPitchAngleDegrees: if camera is pitched 10 degrees upwards, set to +10.0, if not pitched then set to 0.0
         :param minPercentFrame: if tags are too small (for example smaller than 0.07% of frame), do not use them
         :param maxRotationSpeed: when robot spins too fast (in degrees per second), camera will be ignored
         """
         assert isinstance(camera, LimelightCamera), "you can only add LimelightCamera(s) to LimelightLocalizer"
         assert camera.cameraName not in self.cameras, f"camera {camera.cameraName} already added to LimelightLocalizer"
         self.cameras[camera.cameraName] = CameraState(
-            camera, cameraPoseOnRobot, cameraHeadingOnRobot, minPercentFrame, maxRotationSpeed
+            camera, cameraPoseOnRobot, cameraHeadingOnRobot, cameraPitchAngleDegrees, minPercentFrame, maxRotationSpeed
         )
         camera.addLocalizer()
 
@@ -107,7 +109,9 @@ class LimelightLocalizer(Subsystem):
                 continue
 
             p = c.cameraPoseOnRobot
-            camera.cameraPoseSetRequest.set([p.x, p.y, p.z, 0.0, 0.0, c.cameraHeadingOnRobot.degrees()])
+            camera.cameraPoseSetRequest.set(
+                [p.x, p.y, p.z, c.cameraPitchAngleDegrees, 0.0, c.cameraHeadingOnRobot.degrees()]
+            )
 
             # Limelight4-only (does nothing on Limelight 3)
             camera.imuModeRequest.set(0)
