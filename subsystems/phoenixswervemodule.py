@@ -231,8 +231,8 @@ class PhoenixSwerveModule(Subsystem):
         if DEBUG_TARGET_ANGLE:
             SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/desired", desiredState.angle.degrees() / 360)
             SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/optimized", optimized.angle.degrees() / 360)
-            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/offset_rel", self.steerFusedAngle.relative_minus_absolute)
-            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/optimized_rel", steering_goal)
+            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/offset", self.steerFusedAngle.relative_minus_absolute)
+            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/optimized_plus_offset", steering_goal)
             denominator = desiredState.speed if desiredState.speed != 0 else 999999
             SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/flip", optimized.speed / denominator)
 
