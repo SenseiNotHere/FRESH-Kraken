@@ -12,8 +12,8 @@ from wpimath.kinematics import SwerveModuleState, SwerveModulePosition
 from constants import ModuleConstants
 
 
-DEBUG_FUSED_ANGLE = False
-DEBUG_TARGET_ANGLE = True
+DEBUG_FUSED_ANGLE = True
+DEBUG_TARGET_ANGLE = False
 
 class PhoenixSwerveModule(Subsystem):
     def __init__(
