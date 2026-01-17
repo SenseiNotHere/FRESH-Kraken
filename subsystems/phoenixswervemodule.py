@@ -1,7 +1,7 @@
 import math
 from commands2 import Subsystem
 from phoenix6.hardware import TalonFX, CANcoder
-from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, CurrentLimitsConfigs
+from phoenix6.configs import TalonFXConfiguration, CANcoderConfiguration, CurrentLimitsConfigs, Slot0Configs
 from phoenix6.signals import NeutralModeValue, InvertedValue, SensorDirectionValue
 from phoenix6.controls import VelocityVoltage, PositionVoltage, MotionMagicVoltage
 from phoenix6.orchestra import Orchestra
@@ -11,9 +11,6 @@ from wpimath.kinematics import SwerveModuleState, SwerveModulePosition
 
 from constants import ModuleConstants
 
-
-DEBUG_FUSED_ANGLE = False
-DEBUG_TARGET_ANGLE = False
 
 class PhoenixSwerveModule(Subsystem):
     def __init__(
@@ -70,10 +67,18 @@ class PhoenixSwerveModule(Subsystem):
             if driveMotorInverted
             else InvertedValue.COUNTER_CLOCKWISE_POSITIVE
         )
-        drivingConfig.slot0.k_p = ModuleConstants.kDrivingP
-        drivingConfig.slot0.k_i = ModuleConstants.kDrivingI
-        drivingConfig.slot0.k_d = ModuleConstants.kDrivingD
         self.drivingMotor.configurator.apply(drivingConfig)
+
+        # Driving Gain Configs
+        drivingSlotConfig = Slot0Configs()
+        (drivingSlotConfig
+         .with_k_p(ModuleConstants.kDrivingP)
+         .with_k_i(ModuleConstants.kDrivingI)
+         .with_k_d(ModuleConstants.kDrivingD)
+         .with_k_s(ModuleConstants.kDrivingS)
+         .with_k_v(ModuleConstants.kDrivingV)
+        )
+        self.drivingMotor.configurator.apply(drivingSlotConfig)
 
         # Turn motor config
         turningConfig = TalonFXConfiguration()
@@ -83,26 +88,39 @@ class PhoenixSwerveModule(Subsystem):
             if turnMotorInverted
             else InvertedValue.COUNTER_CLOCKWISE_POSITIVE
         )
-        turningConfig.slot0.k_p = ModuleConstants.kTurningP
-        turningConfig.slot0.k_i = ModuleConstants.kTurningI
-        turningConfig.slot0.k_d = ModuleConstants.kTurningD
         self.turningMotor.configurator.apply(turningConfig)
+
+        # Turning slot config
+        turningSlotConfig = Slot0Configs()
+        (turningSlotConfig
+         .with_k_p(ModuleConstants.kTurningP)
+         .with_k_i(ModuleConstants.kTurningI)
+         .with_k_d(ModuleConstants.kTurningD)
+         .with_k_s(ModuleConstants.kTurningS)
+         .with_k_v(ModuleConstants.kTurningV)
+         .with_k_a(ModuleConstants.kTurningA)
+        )
+        self.turningMotor.configurator.apply(turningSlotConfig)
 
         # Current limits
         # Driving Current Limits
         drivingCurrentLimits = CurrentLimitsConfigs()
-        drivingCurrentLimits.supply_current_limit = ModuleConstants.kDrivingMotorCurrentLimit
-        drivingCurrentLimits.stator_current_limit = ModuleConstants.kDrivingMotorStatorCurrentLimit
-        drivingCurrentLimits.supply_current_limit_enable = True
-        drivingCurrentLimits.stator_current_limit_enable = True
+        (drivingCurrentLimits
+         .with_supply_current_limit(ModuleConstants.kDrivingMotorCurrentLimit)
+         .with_stator_current_limit(ModuleConstants.kDrivingMotorStatorCurrentLimit)
+         .with_supply_current_limit_enable(True)
+         .with_stator_current_limit_enable(True)
+        )
         self.drivingMotor.configurator.apply(drivingCurrentLimits)
 
         # Turning Current Limits
         turningCurrentLimits = CurrentLimitsConfigs()
-        turningCurrentLimits.supply_current_limit = ModuleConstants.kTurningMotorCurrentLimit
-        turningCurrentLimits.stator_current_limit = ModuleConstants.kTurningStatorCurrentLimit
-        turningCurrentLimits.supply_current_limit_enable = True
-        turningCurrentLimits.stator_current_limit_enable = True
+        (turningCurrentLimits
+         .with_supply_current_limit(ModuleConstants.kTurningMotorCurrentLimit)
+         .with_stator_current_limit(ModuleConstants.kTurningStatorCurrentLimit)
+         .with_supply_current_limit_enable(True)
+         .with_stator_current_limit_enable(True)
+        )
         self.turningMotor.configurator.apply(turningCurrentLimits)
 
         # Control requests
@@ -225,20 +243,6 @@ class PhoenixSwerveModule(Subsystem):
             optimized.angle.radians() / (2 * math.pi)
         )
 
-        if DEBUG_TARGET_ANGLE:
-            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/desired", desiredState.angle.degrees() / 360)
-            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/optimized", optimized.angle.degrees() / 360)
-            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/ozffset", self.steerFusedAngle.relative_minus_absolute)
-            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/total_with_offset", steering_goal)
-            denominator = desiredState.speed if desiredState.speed != 0 else 999999
-            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/zflip", optimized.speed / denominator)
-
-            actual_with_offset = self.turningMotor.get_position().value / ModuleConstants.kTurningMotorReduction
-            actual = self.steerFusedAngle.to_absolute_rotations(actual_with_offset)
-            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/zzactual_with_offset", actual_with_offset)
-            SmartDashboard.putNumber(f"swerveAngle_{self.modulePlace}/zzactual_wno_offset", actual)
-
-
         self.turningMotor.set_control(
             self.position_request.with_position(
                 steering_goal * ModuleConstants.kTurningMotorReduction
@@ -324,12 +328,6 @@ class FusedTurningAngle:
         if ModuleConstants.kTurningKalmanGain > 0:
             correction = ModuleConstants.kTurningKalmanGain * (observation - self.relative_minus_absolute)
             self.relative_minus_absolute += correction
-
-        if DEBUG_FUSED_ANGLE:
-            SmartDashboard.putNumber(f"fusedAngle_{self.place}/absolute", absolute_rotations)
-            SmartDashboard.putNumber(f"fusedAngle_{self.place}/relative", relative_rotations)
-            SmartDashboard.putNumber(f"fusedAngle_{self.place}/offset", self.relative_minus_absolute)
-
 
     def complain(self, reason):
         if reason != self.not_ready:

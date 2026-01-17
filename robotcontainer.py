@@ -22,6 +22,7 @@ from subsystems.drivesubsystem import DriveSubsystem, BadSimPhysics,AutoBuilder
 from subsystems.limelightcamera import LimelightCamera
 from subsystems.limelight_localizer import LimelightLocalizer
 from subsystems.shootersubsystem import Shooter
+from subsystems.indexersubsystem import Indexer
 from commands.holonomicDrive import HolonomicDrive
 from commands.approach import ApproachTag
 from buttonbindings import ButtonBindings
@@ -101,14 +102,17 @@ class RobotContainer:
                 rotationSpeed=lambda: self.driverController.getRawAxis(XboxController.Axis.kRightX),
                 deadband=OIConstants.kDriveDeadband,
                 fieldRelative=True,
-                rateLimit=True,
+                rateLimit=False,
                 square=True,
             )
         )
-
         # Shooter
-        self.shooter = Shooter(motorCANID=ShooterConstants.kShooterMotorID, motorInverted=False)
+        if ShooterConstants.kShooterEnabled:
+            self.shooter = Shooter(motorCANID=ShooterConstants.kShooterMotorID, motorInverted=False)
 
+        # Indexer
+        if IndexerConstants.kIndexerEnabled:
+            self.indexer = Indexer(motorCANID=IndexerConstants.kIndexerMotorID, motorInverted=False)
 
         # Initialize button bindings
         self.buttonBindings = ButtonBindings(self)

@@ -133,15 +133,10 @@ class ModuleConstants:
     kTurningS = 0.1
     kTurningV = 2.49
     kTurningA = 0.0
-    kTurningFF = 0.15
 
     kTurningDeadbandRot = 0.002
     kTurningMinOutput = -1.0
     kTurningMaxOutput = 1.0
-
-    # Motion Magic
-    kMotionMagicCruiseVelocity = 25.0
-    kMotionMagicAcceleration = 100.0
 
     # Neutral Modes
     kDrivingMotorIdleMode = talon_fx.signals.NeutralModeValue(
@@ -232,7 +227,6 @@ class AutoConstants:
 class ShooterConstants:
     # CAN IDs
     kShooterMotorID = 9
-
     # RPM Limits
     kMinRPM = 600        # minimum sensible non-zero RPM
     kMaxRPM = 6000
@@ -243,11 +237,30 @@ class ShooterConstants:
     kP = 0.2
     kD = 0.0
 
+    # Current Limits
+    kShooterSupplyLimit = 40 # amps
+    kShooterStatorLimit = 140 # amps
+
+    # Use shooter?
+    kShooterEnabled = False
+
 class IntakeConstants:
     kLeadMotorCANID = 1
     kFollowerMotorCANID = 2
 
     # Control Gains
-    kFF = 0.00015
-    kP = 0.0005
+    kFF = 0.12
+    kP = 0.2
     kD = 0.0
+
+class IndexerConstants:
+    kIndexerMotorID = 0
+
+    # Control Gains
+    kP = 0.0
+    kD = 0.0
+    kFF = 0.12
+    kMaxRPS = 40.0
+    kFeedRPS = 18.0
+
+    kIndexerEnabled = False

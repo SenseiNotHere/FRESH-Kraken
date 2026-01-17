@@ -3,7 +3,7 @@ from commands2 import cmd, InstantCommand, RunCommand
 from commands2.button import CommandGenericHID
 from subsystems.drivesubsystem import DriveSubsystem
 from subsystems.limelightcamera import LimelightCamera
-from constants import OIConstants
+from constants import *
 
 from commands.reset_XY import ResetXY, ResetSwerveFront
 from commands.followObject import FollowObject
@@ -18,6 +18,10 @@ class ButtonBindings:
         self.robotDrive = robot_container.robotDrive
         self.driverController = robot_container.driverController
         self.limelight = robot_container.limelight
+        if ShooterConstants.kShooterEnabled:
+            self.shooter = robot_container.shooter
+        if IndexerConstants.kIndexerEnabled:
+            self.indexer = robot_container.indexer
 
     def configureButtonBindings(self):
         """Configure button bindings for the robot."""
@@ -61,7 +65,21 @@ class ButtonBindings:
         aButton = self.driverController.button(XboxController.Button.kA)
         aButton.onTrue(InstantCommand(lambda: self.robotDrive.stopSound()))
 
-        # Enable Shooter
+        # Shooter + Indexer
         xButton = self.driverController.button(XboxController.Button.kX)
-        xButton.whileTrue(InstantCommand(lambda: self.robotContainer.shooter.enable()))
-        xButton.whileFalse(InstantCommand(lambda: self.robotContainer.shooter.disable()))
+
+        # Shooter only
+        if ShooterConstants.kShooterEnabled and not IndexerConstants.kIndexerEnabled:
+            # Shooter
+            xButton.whenTrue(InstantCommand(lambda: self.robotContainer.shooter.enable()))
+            xButton.whenFalse(InstantCommand(lambda: self.robotContainer.shooter.disable()))
+
+        # Shooter + Indexer
+        elif ShooterConstants.kShooterEnabled and IndexerConstants.kIndexerEnabled:
+            # Shooter
+            xButton.whenTrue(InstantCommand(lambda: self.shooter.enable()))
+            xButton.whenFalse(InstantCommand(lambda: self.shooter.disable()))
+
+            # Indexer
+            xButton.whileTrue(InstantCommand(lambda: self.indexer.enable() if self.shooter.atSpeed() else print("Not ready to index yet")))
+            xButton.whenFalse(InstantCommand(lambda: self.indexer.disable()))
