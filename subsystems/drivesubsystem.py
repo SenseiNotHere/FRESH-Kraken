@@ -16,6 +16,7 @@ from wpimath.kinematics import (
 )
 from wpilib import SmartDashboard, Field2d, DriverStation
 
+from commands.aimToDirection import AimToDirectionConstants
 from .phoenixswervemodule import PhoenixSwerveModule
 import navx
 
@@ -82,6 +83,9 @@ class DriveSubsystem(Subsystem):
             canCoderOffset=ModuleConstants.kBackRightTurningEncoderOffset,
             modulePlace="BR"
         )
+
+        # Override for the direction where robot should point
+        self.overrideControlsToFaceThisPoint: Translation2d | None = None
 
         #RoboRIO Gyro Sensor
         self.gyro = navx.AHRS.create_spi()
@@ -322,6 +326,9 @@ class DriveSubsystem(Subsystem):
         xSpeedCommanded = xSpeed
         ySpeedCommanded = ySpeed
 
+        if self.overrideControlsToFaceThisPoint:
+            rot = self.calaculateOverrideRotSpeed()
+
         # Convert the commanded speeds into the correct units for the drivetrain
         xSpeedGoal = xSpeedCommanded * DrivingConstants.kMaxMetersPerSecond
         ySpeedGoal = ySpeedCommanded * DrivingConstants.kMaxMetersPerSecond
@@ -476,6 +483,46 @@ class DriveSubsystem(Subsystem):
         Stop playing music through the motors.
         """
         self.orchestra.stop()
+
+
+    def startOverrideToFaceThisPoint(self, point: Translation2d) -> bool:
+        if self.overrideControlsToFaceThisPoint is not None:
+            return False
+        self.overrideControlsToFaceThisPoint = point
+        return True
+
+
+    def stopOverrideToFaceThisPoint(self, point: Translation2d):
+        if self.overrideControlsToFaceThisPoint == point:
+            self.overrideControlsToFaceThisPoint = None
+            return True
+        return False
+
+
+    def calaculateOverrideRotSpeed(self):
+        # 1. how many degrees we need to turn?
+        pose = self.getPose()
+        vectorToTarget = self.overrideControlsToFaceThisPoint - pose.translation()
+        if not vectorToTarget.squaredNorm() > 0:
+            return 0.0
+        targetDirection = vectorToTarget.angle()
+        degreesRemainingToTurn = (targetDirection - pose.rotation()).degrees()
+
+        # (do not turn left 350 degrees if you can just turn right -10 degrees, and vice versa)
+        while degreesRemainingToTurn > 180:
+            degreesRemainingToTurn -= 360
+        while degreesRemainingToTurn < -180:
+            degreesRemainingToTurn += 360
+
+        # 2. proportional control: if we are almost finished turning, use slower turn speed (to avoid overshooting)
+        proportionalSpeed = AimToDirectionConstants.kP * abs(degreesRemainingToTurn)
+        if AimToDirectionConstants.kUseSqrtControl:
+            proportionalSpeed = math.sqrt(0.5 * proportionalSpeed)  # will match the non-sqrt value when 50% max speed
+        rotSpeed = min(proportionalSpeed, 1.0)
+
+        # 3. if need to turn left, return the positive speed, otherwise negative
+        return rotSpeed if degreesRemainingToTurn > 0 else -rotSpeed
+
 
 class BadSimPhysics(object):
     """
